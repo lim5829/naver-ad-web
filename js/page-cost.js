@@ -6,7 +6,7 @@ function TabBar({ active, onChange }) {
     { id: "settings", label: "설정", icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> },
   ];
   return (
-    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, background: theme.surface, borderTop: `1px solid ${theme.border}`, display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, minWidth: 0, background: theme.surface, borderTop: `1px solid ${theme.border}`, display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
           flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
@@ -164,10 +164,12 @@ function CostPage({ user, apiSettings, showToast }) {
     </div>
   );
 
-  const activeCamps = campaigns.filter(c => { const cs = campaignStats[c.nccCampaignId]; return cs && cs.salesAmt > 0; });
+  const sortedCamps = campaigns
+    .filter(c => campaignStats[c.nccCampaignId])
+    .sort((a, b) => (campaignStats[b.nccCampaignId]?.salesAmt || 0) - (campaignStats[a.nccCampaignId]?.salesAmt || 0));
 
   return (
-    <div style={{ minHeight: "100vh", padding: "0 20px 80px" }}>
+    <div style={{ width: "100%", minHeight: "100vh", padding: "0 20px 80px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 12px", position: "sticky", top: 0, zIndex: 10, background: theme.bg + "ee", backdropFilter: "blur(12px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg," + theme.accent + "," + theme.accentDark + ")", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px " + theme.accentGlow }}>
@@ -226,7 +228,7 @@ function CostPage({ user, apiSettings, showToast }) {
             </Card>
           )}
 
-          {activeCamps.length > 0 && (
+          {sortedCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <button onClick={() => setExpanded(!expanded)} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -236,13 +238,13 @@ function CostPage({ user, apiSettings, showToast }) {
               }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
                 <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>
-                  {activeCamps.length}개
+                  {sortedCamps.length}개
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ marginLeft: 4, verticalAlign: "middle", transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
                 </span>
               </button>
               {expanded && (
                 <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 12 }}>
-                  {activeCamps.map(c => {
+                  {sortedCamps.map(c => {
                     const cs = campaignStats[c.nccCampaignId];
                     return (
                       <div key={c.nccCampaignId} style={{ marginBottom: 10 }}>
