@@ -56,7 +56,6 @@ function CostPage({ user, apiSettings, showToast }) {
   const [dailyData, setDailyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expanded, setExpanded] = useState(false);
   const [campsLoaded, setCampsLoaded] = useState(false);
 
   const periods = [
@@ -102,7 +101,7 @@ function CostPage({ user, apiSettings, showToast }) {
   }, [apiSettings, campsLoaded, campaigns]);
 
   const loadPeriod = useCallback(async (periodKey) => {
-    setLoading(true); setError(""); setStats(null); setCampaignStats({}); setDailyData([]); setExpanded(false);
+    setLoading(true); setError(""); setStats(null); setCampaignStats({}); setDailyData([]);
     const p = periods.find(x => x.key === periodKey);
     try {
       const camps = await loadCampaigns();
@@ -230,34 +229,23 @@ function CostPage({ user, apiSettings, showToast }) {
 
           {sortedCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <button onClick={() => setExpanded(!expanded)} style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: theme.surface, border: "1px solid " + (expanded ? theme.accent + "33" : theme.border),
-                borderRadius: expanded ? "14px 14px 0 0" : 14, padding: "12px 16px",
-                cursor: "pointer", boxShadow: theme.cardShadow,
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
-                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>
-                  {sortedCamps.length}개
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ marginLeft: 4, verticalAlign: "middle", transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
-                </span>
-              </button>
-              {expanded && (
-                <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 12 }}>
-                  {sortedCamps.map(c => {
-                    const cs = campaignStats[c.nccCampaignId];
-                    return (
-                      <div key={c.nccCampaignId} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent, display: "inline-block" }} />
-                          {c.name}
-                        </div>
-                        <StatGrid s={cs} compact />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>캠페인별 상세</span>
+                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>{sortedCamps.length}개</span>
+              </div>
+              {sortedCamps.map(c => {
+                const cs = campaignStats[c.nccCampaignId];
+                const isZero = !cs || cs.salesAmt === 0;
+                return (
+                  <Card key={c.nccCampaignId} style={{ padding: 12, marginBottom: 8, opacity: isZero ? 0.5 : 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: isZero ? theme.textDim : theme.accent, display: "inline-block" }} />
+                      {c.name}
+                    </div>
+                    {cs && <StatGrid s={cs} compact />}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </>
