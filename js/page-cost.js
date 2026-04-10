@@ -47,6 +47,135 @@ function MiniChart({ data, color, height = 60 }) {
 }
 
 
+// ─── Cost Campaign Card with Adgroups ───
+function CostCampaignCard({ campaign, stats: cs, apiSettings, activePeriod, StatGrid, autoOpen }) {
+  const [open, setOpen] = useState(false);
+  const [adgroups, setAdgroups] = useState([]);
+  const [adgroupStats, setAdgroupStats] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadedPeriod, setLoadedPeriod] = useState(null);
+
+  const isZero = !cs || cs.salesAmt === 0;
+
+  // 자동 펼침
+  useEffect(() => {
+    if (autoOpen && !isZero && !loaded) {
+      loadAdgroups().then(() => setOpen(true));
+    }
+  }, [autoOpen]);
+
+  const getMonthRange = (offset) => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const last = offset === 0 ? now : new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+    const fmt = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+    return { since: fmt(first), until: fmt(last) };
+  };
+
+  const loadAdgroups = async () => {
+    setLoading(true);
+    try {
+      const agData = await naverApiFetch({
+        path: "/api/adgroups?campaignId=" + campaign.nccCampaignId,
+        ...apiSettings,
+      });
+      const ags = Array.isArray(agData) ? agData : [];
+      setAdgroups(ags);
+
+      if (ags.length > 0) {
+        const agIds = ags.map(a => a.nccAdgroupId).join(",");
+        const fields = '["clkCnt","impCnt","salesAmt","cpc","ctr"]';
+        let sData;
+        if (activePeriod === "thisMonth") {
+          const r = getMonthRange(0);
+          sData = await naverApiFetch({ path: "/api/stats-range?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&since=" + r.since + "&until=" + r.until, ...apiSettings });
+        } else if (activePeriod === "lastMonth") {
+          const r = getMonthRange(-1);
+          sData = await naverApiFetch({ path: "/api/stats-range?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&since=" + r.since + "&until=" + r.until, ...apiSettings });
+        } else {
+          const preset = activePeriod === "yesterday" ? "yesterday" : "today";
+          sData = await naverApiFetch({ path: "/api/stats-summary?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&datePreset=" + preset, ...apiSettings });
+        }
+        const arr = extractDataArray(sData);
+        const byAg = {};
+        arr.forEach(item => { const id = item.id || item.nccAdgroupId; if (!byAg[id]) byAg[id] = []; byAg[id].push(item); });
+        const result = {};
+        ags.forEach(a => {
+          const items = byAg[a.nccAdgroupId] || [];
+          result[a.nccAdgroupId] = items.length > 0 ? aggregateStats(items) : { clkCnt:0, impCnt:0, salesAmt:0, cpc:0, ctr:"0.00" };
+        });
+        setAdgroupStats(result);
+      }
+      setLoaded(true);
+      setLoadedPeriod(activePeriod);
+    } catch (e) {
+      setAdgroups([]);
+    }
+    setLoading(false);
+  };
+
+  const toggle = () => {
+    if (!open && (!loaded || loadedPeriod !== activePeriod)) {
+      loadAdgroups();
+    }
+    setOpen(!open);
+  };
+
+  const sortedAgs = adgroups
+    .filter(a => adgroupStats[a.nccAdgroupId])
+    .sort((a, b) => (adgroupStats[b.nccAdgroupId]?.salesAmt || 0) - (adgroupStats[a.nccAdgroupId]?.salesAmt || 0));
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <button onClick={toggle} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: theme.surface, border: "1px solid " + (open ? theme.accent + "33" : theme.border),
+        borderRadius: open ? "14px 14px 0 0" : 14, padding: "10px 14px",
+        cursor: "pointer", boxShadow: theme.cardShadow, opacity: isZero ? 0.5 : 1,
+      }}>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={open ? theme.accent : theme.textDim} strokeWidth="2.5" style={{ transition: "transform 0.2s", transform: open ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
+            {campaign.name}
+          </div>
+          {cs && (
+            <div style={{ display: "flex", gap: 12, fontSize: 11, color: theme.textDim, fontWeight: 600, marginLeft: 20 }}>
+              <span>클릭 <b style={{ color: theme.accent }}>{fmtNum(cs.clkCnt)}</b></span>
+              <span>CPC <b style={{ color: theme.text }}>{fmtNum(cs.cpc)}원</b></span>
+              <span>비용 <b style={{ color: theme.danger }}>{fmtNum(cs.salesAmt)}원</b></span>
+            </div>
+          )}
+        </div>
+      </button>
+
+      {open && (
+        <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 10 }}>
+          {loading && (
+            <div style={{ textAlign: "center", padding: 16 }}>
+              <span style={{ width: 18, height: 18, border: "2px solid " + theme.accent, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            </div>
+          )}
+          {!loading && sortedAgs.length === 0 && (
+            <div style={{ textAlign: "center", padding: 12, color: theme.textDim, fontSize: 12 }}>광고그룹 없음</div>
+          )}
+          {!loading && sortedAgs.map(a => {
+            const as = adgroupStats[a.nccAdgroupId];
+            const agZero = !as || as.salesAmt === 0;
+            return (
+              <div key={a.nccAdgroupId} style={{ padding: "8px 10px", background: theme.surface, borderRadius: 10, border: "1px solid " + theme.border, marginBottom: 6, opacity: agZero ? 0.45 : 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: theme.text, marginBottom: 5 }}>{a.name}</div>
+                {as && <StatGrid s={as} compact />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Cost Page ───
 function CostPage({ user, apiSettings, showToast }) {
   const [activePeriod, setActivePeriod] = useState("today");
@@ -233,19 +362,9 @@ function CostPage({ user, apiSettings, showToast }) {
                 <span>캠페인별 상세</span>
                 <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>{sortedCamps.length}개</span>
               </div>
-              {sortedCamps.map(c => {
-                const cs = campaignStats[c.nccCampaignId];
-                const isZero = !cs || cs.salesAmt === 0;
-                return (
-                  <Card key={c.nccCampaignId} style={{ padding: 12, marginBottom: 8, opacity: isZero ? 0.5 : 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: isZero ? theme.textDim : theme.accent, display: "inline-block" }} />
-                      {c.name}
-                    </div>
-                    {cs && <StatGrid s={cs} compact />}
-                  </Card>
-                );
-              })}
+              {sortedCamps.map((c, i) => (
+                <CostCampaignCard key={c.nccCampaignId} campaign={c} stats={campaignStats[c.nccCampaignId]} apiSettings={apiSettings} activePeriod={activePeriod} StatGrid={StatGrid} autoOpen={i === 0} />
+              ))}
             </div>
           )}
         </>
