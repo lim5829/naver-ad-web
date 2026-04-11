@@ -53,7 +53,7 @@ function RankPage({ user, apiSettings, showToast }) {
   const loadKeywords = useCallback(async (grpId) => {
     try {
       setLoadingKw(true); setError("");
-      const data = await naverApiFetch({ path: `/api/adkeywords?adgroupId=${grpId}`, ...apiSettings });
+      const data = await naverApiFetch({ path: `/api/keywords?adgroupId=${grpId}`, ...apiSettings });
       const list = Array.isArray(data) ? data : [];
       setKeywords(list);
       return list;
