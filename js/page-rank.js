@@ -32,7 +32,7 @@ function RankPage({ user, apiSettings, showToast }) {
   const loadCampaigns = useCallback(async () => {
     try {
       setLoading(true); setError("");
-      const data = await naverApiFetch({ path: "/ncc/campaigns", ...apiSettings });
+      const data = await naverApiFetch({ path: "/api/campaigns", ...apiSettings });
       const list = Array.isArray(data) ? data : [];
       setCampaigns(list);
     } catch (e) { setError(e.message); }
@@ -43,7 +43,7 @@ function RankPage({ user, apiSettings, showToast }) {
   const loadAdGroups = useCallback(async (cmpId) => {
     try {
       setLoading(true); setError("");
-      const data = await naverApiFetch({ path: `/ncc/adgroups?nccCampaignId=${cmpId}`, ...apiSettings });
+      const data = await naverApiFetch({ path: `/api/adgroups?campaignId=${cmpId}`, ...apiSettings });
       setAdGroups(Array.isArray(data) ? data : []);
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -53,7 +53,7 @@ function RankPage({ user, apiSettings, showToast }) {
   const loadKeywords = useCallback(async (grpId) => {
     try {
       setLoadingKw(true); setError("");
-      const data = await naverApiFetch({ path: `/ncc/adkeywords?nccAdgroupId=${grpId}`, ...apiSettings });
+      const data = await naverApiFetch({ path: `/api/adkeywords?adgroupId=${grpId}`, ...apiSettings });
       const list = Array.isArray(data) ? data : [];
       setKeywords(list);
       return list;
@@ -76,7 +76,7 @@ function RankPage({ user, apiSettings, showToast }) {
       const batch = texts.slice(i, i + 5).join(",");
       try {
         const data = await naverApiFetch({
-          path: `/keywordstool?hintKeywords=${encodeURIComponent(batch)}&showDetail=1`,
+          path: `/api/keywordstool?hintKeywords=${encodeURIComponent(batch)}&showDetail=1`,
           ...apiSettings,
         });
         if (data && data.keywordList) {
