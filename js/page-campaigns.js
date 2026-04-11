@@ -1,5 +1,5 @@
 // ─── Bid Presets ───
-// DEFAULT_PRESETS는 theme.js에 정의됨
+const DEFAULT_PRESETS = [70, 500, 1000, 2000, 5000, 10000];
 
 function PresetManager({ presets, onChange }) {
   const [editing, setEditing] = useState(false);

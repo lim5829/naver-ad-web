@@ -1,20 +1,21 @@
 // ─── Tab Bar ───
 function TabBar({ active, onChange }) {
   const tabs = [
-    { id: "campaigns", label: "캠페인", icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> },
-    { id: "cost", label: "광고비", icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-    { id: "settings", label: "설정", icon: <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> },
+    { id: "campaigns", label: "캠페인", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> },
+    { id: "rank", label: "순위", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+    { id: "cost", label: "광고비", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+    { id: "settings", label: "설정", icon: <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> },
   ];
   return (
-    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, minWidth: 0, background: theme.surface, borderTop: `1px solid ${theme.border}`, display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: theme.surface, borderTop: `1px solid ${theme.border}`, display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
-          flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-          padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer",
+          flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+          padding: "10px 0 8px", background: "none", border: "none", cursor: "pointer",
           color: active === t.id ? theme.accent : theme.textDim, transition: "color 0.2s",
         }}>
           {t.icon}
-          <span style={{ fontSize: 11, fontWeight: 700 }}>{t.label}</span>
+          <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
         </button>
       ))}
     </div>
@@ -47,135 +48,6 @@ function MiniChart({ data, color, height = 60 }) {
 }
 
 
-// ─── Cost Campaign Card with Adgroups ───
-function CostCampaignCard({ campaign, stats: cs, apiSettings, activePeriod, StatGrid, autoOpen }) {
-  const [open, setOpen] = useState(false);
-  const [adgroups, setAdgroups] = useState([]);
-  const [adgroupStats, setAdgroupStats] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [loadedPeriod, setLoadedPeriod] = useState(null);
-
-  const isZero = !cs || cs.salesAmt === 0;
-
-  // 자동 펼침
-  useEffect(() => {
-    if (autoOpen && !isZero && !loaded) {
-      loadAdgroups().then(() => setOpen(true));
-    }
-  }, [autoOpen]);
-
-  const getMonthRange = (offset) => {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    const last = offset === 0 ? now : new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
-    const fmt = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
-    return { since: fmt(first), until: fmt(last) };
-  };
-
-  const loadAdgroups = async () => {
-    setLoading(true);
-    try {
-      const agData = await naverApiFetch({
-        path: "/api/adgroups?campaignId=" + campaign.nccCampaignId,
-        ...apiSettings,
-      });
-      const ags = Array.isArray(agData) ? agData : [];
-      setAdgroups(ags);
-
-      if (ags.length > 0) {
-        const agIds = ags.map(a => a.nccAdgroupId).join(",");
-        const fields = '["clkCnt","impCnt","salesAmt","cpc","ctr"]';
-        let sData;
-        if (activePeriod === "thisMonth") {
-          const r = getMonthRange(0);
-          sData = await naverApiFetch({ path: "/api/stats-range?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&since=" + r.since + "&until=" + r.until, ...apiSettings });
-        } else if (activePeriod === "lastMonth") {
-          const r = getMonthRange(-1);
-          sData = await naverApiFetch({ path: "/api/stats-range?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&since=" + r.since + "&until=" + r.until, ...apiSettings });
-        } else {
-          const preset = activePeriod === "yesterday" ? "yesterday" : "today";
-          sData = await naverApiFetch({ path: "/api/stats-summary?ids=" + encodeURIComponent(agIds) + "&fields=" + encodeURIComponent(fields) + "&datePreset=" + preset, ...apiSettings });
-        }
-        const arr = extractDataArray(sData);
-        const byAg = {};
-        arr.forEach(item => { const id = item.id || item.nccAdgroupId; if (!byAg[id]) byAg[id] = []; byAg[id].push(item); });
-        const result = {};
-        ags.forEach(a => {
-          const items = byAg[a.nccAdgroupId] || [];
-          result[a.nccAdgroupId] = items.length > 0 ? aggregateStats(items) : { clkCnt:0, impCnt:0, salesAmt:0, cpc:0, ctr:"0.00" };
-        });
-        setAdgroupStats(result);
-      }
-      setLoaded(true);
-      setLoadedPeriod(activePeriod);
-    } catch (e) {
-      setAdgroups([]);
-    }
-    setLoading(false);
-  };
-
-  const toggle = () => {
-    if (!open && (!loaded || loadedPeriod !== activePeriod)) {
-      loadAdgroups();
-    }
-    setOpen(!open);
-  };
-
-  const sortedAgs = adgroups
-    .filter(a => adgroupStats[a.nccAdgroupId])
-    .sort((a, b) => (adgroupStats[b.nccAdgroupId]?.salesAmt || 0) - (adgroupStats[a.nccAdgroupId]?.salesAmt || 0));
-
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <button onClick={toggle} style={{
-        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: theme.surface, border: "1px solid " + (open ? theme.accent + "33" : theme.border),
-        borderRadius: open ? "14px 14px 0 0" : 14, padding: "10px 14px",
-        cursor: "pointer", boxShadow: theme.cardShadow, opacity: isZero ? 0.5 : 1,
-      }}>
-        <div style={{ flex: 1, textAlign: "left" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={open ? theme.accent : theme.textDim} strokeWidth="2.5" style={{ transition: "transform 0.2s", transform: open ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}><polyline points="9 18 15 12 9 6" /></svg>
-            {campaign.name}
-          </div>
-          {cs && (
-            <div style={{ display: "flex", gap: 12, fontSize: 11, color: theme.textDim, fontWeight: 600, marginLeft: 20 }}>
-              <span>클릭 <b style={{ color: theme.accent }}>{fmtNum(cs.clkCnt)}</b></span>
-              <span>CPC <b style={{ color: theme.text }}>{fmtNum(cs.cpc)}원</b></span>
-              <span>비용 <b style={{ color: theme.danger }}>{fmtNum(cs.salesAmt)}원</b></span>
-            </div>
-          )}
-        </div>
-      </button>
-
-      {open && (
-        <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 10 }}>
-          {loading && (
-            <div style={{ textAlign: "center", padding: 16 }}>
-              <span style={{ width: 18, height: 18, border: "2px solid " + theme.accent, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
-              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-            </div>
-          )}
-          {!loading && sortedAgs.length === 0 && (
-            <div style={{ textAlign: "center", padding: 12, color: theme.textDim, fontSize: 12 }}>광고그룹 없음</div>
-          )}
-          {!loading && sortedAgs.map(a => {
-            const as = adgroupStats[a.nccAdgroupId];
-            const agZero = !as || as.salesAmt === 0;
-            return (
-              <div key={a.nccAdgroupId} style={{ padding: "8px 10px", background: theme.surface, borderRadius: 10, border: "1px solid " + theme.border, marginBottom: 6, opacity: agZero ? 0.45 : 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: theme.text, marginBottom: 5 }}>{a.name}</div>
-                {as && <StatGrid s={as} compact />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Cost Page ───
 function CostPage({ user, apiSettings, showToast }) {
   const [activePeriod, setActivePeriod] = useState("today");
@@ -185,6 +57,7 @@ function CostPage({ user, apiSettings, showToast }) {
   const [dailyData, setDailyData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const [campsLoaded, setCampsLoaded] = useState(false);
 
   const periods = [
@@ -230,7 +103,7 @@ function CostPage({ user, apiSettings, showToast }) {
   }, [apiSettings, campsLoaded, campaigns]);
 
   const loadPeriod = useCallback(async (periodKey) => {
-    setLoading(true); setError(""); setStats(null); setCampaignStats({}); setDailyData([]);
+    setLoading(true); setError(""); setStats(null); setCampaignStats({}); setDailyData([]); setExpanded(false);
     const p = periods.find(x => x.key === periodKey);
     try {
       const camps = await loadCampaigns();
@@ -292,12 +165,10 @@ function CostPage({ user, apiSettings, showToast }) {
     </div>
   );
 
-  const sortedCamps = campaigns
-    .filter(c => campaignStats[c.nccCampaignId])
-    .sort((a, b) => (campaignStats[b.nccCampaignId]?.salesAmt || 0) - (campaignStats[a.nccCampaignId]?.salesAmt || 0));
+  const activeCamps = campaigns.filter(c => { const cs = campaignStats[c.nccCampaignId]; return cs && cs.salesAmt > 0; });
 
   return (
-    <div style={{ width: "100%", minHeight: "100vh", padding: "0 20px 80px" }}>
+    <div style={{ minHeight: "100vh", padding: "0 20px 80px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 12px", position: "sticky", top: 0, zIndex: 10, background: theme.bg + "ee", backdropFilter: "blur(12px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg," + theme.accent + "," + theme.accentDark + ")", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px " + theme.accentGlow }}>
@@ -356,15 +227,36 @@ function CostPage({ user, apiSettings, showToast }) {
             </Card>
           )}
 
-          {sortedCamps.length > 0 && (
+          {activeCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>캠페인별 상세</span>
-                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>{sortedCamps.length}개</span>
-              </div>
-              {sortedCamps.map((c, i) => (
-                <CostCampaignCard key={c.nccCampaignId} campaign={c} stats={campaignStats[c.nccCampaignId]} apiSettings={apiSettings} activePeriod={activePeriod} StatGrid={StatGrid} autoOpen={i === 0} />
-              ))}
+              <button onClick={() => setExpanded(!expanded)} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: theme.surface, border: "1px solid " + (expanded ? theme.accent + "33" : theme.border),
+                borderRadius: expanded ? "14px 14px 0 0" : 14, padding: "12px 16px",
+                cursor: "pointer", boxShadow: theme.cardShadow,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
+                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>
+                  {activeCamps.length}개
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ marginLeft: 4, verticalAlign: "middle", transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
+                </span>
+              </button>
+              {expanded && (
+                <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 12 }}>
+                  {activeCamps.map(c => {
+                    const cs = campaignStats[c.nccCampaignId];
+                    return (
+                      <div key={c.nccCampaignId} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent, display: "inline-block" }} />
+                          {c.name}
+                        </div>
+                        <StatGrid s={cs} compact />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -372,4 +264,3 @@ function CostPage({ user, apiSettings, showToast }) {
     </div>
   );
 }
-
