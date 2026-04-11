@@ -117,8 +117,8 @@ function BidEditor({ adgroup, apiSettings, presets, showToast }) {
 
 // ─── Budget Editor (하루예산) ───
 function BudgetEditor({ adgroup, apiSettings, showToast }) {
-  const currentBudget = adgroup.dailyBudget || 0;
-  const [budget, setBudget] = useState(String(currentBudget));
+  const [displayBudget, setDisplayBudget] = useState(adgroup.dailyBudget || 0);
+  const [budget, setBudget] = useState(String(adgroup.dailyBudget || 0));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -126,18 +126,21 @@ function BudgetEditor({ adgroup, apiSettings, showToast }) {
   const handleSave = async () => {
     const val = parseInt(budget);
     if (isNaN(val) || val < 0) { showToast("올바른 금액을 입력하세요", "error"); return; }
-    if (val === currentBudget) { setEditing(false); return; }
+    if (val === displayBudget) { setEditing(false); return; }
     setSaving(true);
     try {
-      await naverApiFetch({
+      const result = await naverApiFetch({
         method: "PUT",
         path: `/api/adgroups/${adgroup.nccAdgroupId}/budget`,
         ...apiSettings,
         body: { dailyBudget: val },
       });
+      const newBudget = result && result.dailyBudget != null ? result.dailyBudget : val;
+      setDisplayBudget(newBudget);
+      setBudget(String(newBudget));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      showToast(`하루예산 ${val === 0 ? "제한없음" : fmtNum(val) + "원"}으로 변경`);
+      showToast(`하루예산 ${newBudget === 0 ? "제한없음" : fmtNum(newBudget) + "원"}으로 변경`);
       setEditing(false);
     } catch (e) {
       showToast(`변경 실패: ${e.message}`, "error");
@@ -154,8 +157,8 @@ function BudgetEditor({ adgroup, apiSettings, showToast }) {
         transition: "all 0.2s",
       }}>
         <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 600 }}>하루예산</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: currentBudget > 0 ? theme.text : theme.textDim }}>
-          {currentBudget > 0 ? fmtNum(currentBudget) + "원" : "제한없음"}
+        <span style={{ fontSize: 12, fontWeight: 700, color: displayBudget > 0 ? theme.text : theme.textDim }}>
+          {displayBudget > 0 ? fmtNum(displayBudget) + "원" : "제한없음"}
         </span>
         <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         {saved && <span style={{ color: theme.accent }}>{I.check}</span>}
@@ -182,7 +185,7 @@ function BudgetEditor({ adgroup, apiSettings, showToast }) {
         background: theme.accent, color: "#fff", border: "none", borderRadius: 8,
         padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
       }}>{saving ? "..." : "저장"}</button>
-      <button onClick={() => { setEditing(false); setBudget(String(currentBudget)); }} style={{
+      <button onClick={() => { setEditing(false); setBudget(String(displayBudget)); }} style={{
         background: theme.surfaceLight, color: theme.textDim, border: `1px solid ${theme.border}`,
         borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer",
       }}>취소</button>
