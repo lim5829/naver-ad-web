@@ -258,11 +258,13 @@ function ApiSettingsPage({ user, onLogout, onSave, onGoCampaigns, apiSettings, s
             <span style={{ fontWeight: 600 }}>버전</span><span>1.2.0</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontWeight: 600 }}>프록시</span><span style={{ fontSize: 10, fontFamily: "monospace" }}>{PROXY_BASE}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontWeight: 600 }}>계정</span><span>{user.email}</span>
           </div>
+          {admin && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: 600 }}>프록시</span><span style={{ fontSize: 10, fontFamily: "monospace" }}>{PROXY_BASE}</span>
+            </div>
+          )}
         </div>
       </Card>
     </div>
