@@ -66,7 +66,6 @@ function ApiSettingsPage({ user, onLogout, onSave, onGoCampaigns, apiSettings })
         <InputField icon={I.user} label="CUSTOMER ID" value={customerId} onChange={v => { setCustomerId(v); setSaved(false); }} placeholder="네이버 광고 고객 ID" mono />
         <InputField icon={I.key} label="API KEY" value={apiKey} onChange={v => { setApiKey(v); setSaved(false); }} placeholder="API 액세스 키" mono />
         <InputField icon={I.lock} label="SECRET KEY" value={secretKey} onChange={v => { setSecretKey(v); setSaved(false); }} placeholder="API 시크릿 키" showToggle mono />
-        <InputField icon={I.mail} label="MANAGER LOGIN ID (선택)" value={managerLoginId} onChange={v => { setManagerLoginId(v); setSaved(false); }} placeholder="위탁 관리 시 입력" mono />
       </Card>
 
       {testResult && (
@@ -81,7 +80,6 @@ function ApiSettingsPage({ user, onLogout, onSave, onGoCampaigns, apiSettings })
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Button onClick={handleSave} loading={loading} disabled={!customerId || !apiKey || !secretKey}>{I.check} 설정 저장</Button>
         <Button onClick={handleTest} variant="secondary" loading={loading} disabled={!customerId || !apiKey || !secretKey}>{I.server} API 연결 테스트</Button>
-        {saved && <Button onClick={onGoCampaigns} variant="secondary">{I.campaign} 캠페인 관리</Button>}
       </div>
     </div>
   );
