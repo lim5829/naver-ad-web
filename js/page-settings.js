@@ -9,36 +9,56 @@ function isAdmin(user) {
 function UserManagementPanel({ showToast }) {
   const [users, setUsers] = useState([]);
   const [expanded, setExpanded] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("naver-ad-users") || "[]");
-    setUsers(saved);
-  }, []);
-
-  const deleteUser = (userId) => {
-    if (!confirm("이 회원을 삭제하시겠습니까?")) return;
-    const updated = users.filter(u => u.id !== userId);
-    localStorage.setItem("naver-ad-users", JSON.stringify(updated));
-    // 해당 유저의 API 설정도 삭제
-    localStorage.removeItem(`naver-ad-api-settings-${userId}`);
-    setUsers(updated);
-    showToast("회원이 삭제되었습니다");
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await fetch(`${PROXY_BASE}/api/auth/users`);
+      const data = await res.json();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (e) { setUsers([]); }
+    setLoadingUsers(false);
   };
 
-  const resetPassword = (userId) => {
+  useEffect(() => { if (expanded) loadUsers(); }, [expanded]);
+
+  const deleteUser = async (email) => {
+    if (!confirm("이 회원을 삭제하시겠습니까?")) return;
+    try {
+      await fetch(`${PROXY_BASE}/api/auth/user/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setUsers(users.filter(u => u.email !== email));
+      showToast("회원이 삭제되었습니다");
+    } catch (e) { showToast("삭제 실패", "error"); }
+  };
+
+  const resetPassword = async (email) => {
     const newPw = prompt("새 비밀번호를 입력하세요 (6자 이상):");
     if (!newPw || newPw.length < 6) { showToast("비밀번호는 6자 이상이어야 합니다", "error"); return; }
-    const updated = users.map(u => u.id === userId ? { ...u, password: newPw } : u);
-    localStorage.setItem("naver-ad-users", JSON.stringify(updated));
-    setUsers(updated);
-    showToast("비밀번호가 변경되었습니다");
+    try {
+      await fetch(`${PROXY_BASE}/api/auth/user/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: newPw }),
+      });
+      showToast("비밀번호가 변경되었습니다");
+    } catch (e) { showToast("변경 실패", "error"); }
   };
 
-  const toggleAdmin = (userId) => {
-    const updated = users.map(u => u.id === userId ? { ...u, isAdmin: !u.isAdmin } : u);
-    localStorage.setItem("naver-ad-users", JSON.stringify(updated));
-    setUsers(updated);
-    showToast("권한이 변경되었습니다");
+  const toggleAdmin = async (email, currentAdmin) => {
+    try {
+      await fetch(`${PROXY_BASE}/api/auth/user/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, isAdmin: !currentAdmin }),
+      });
+      setUsers(users.map(u => u.email === email ? { ...u, isAdmin: !currentAdmin } : u));
+      showToast("권한이 변경되었습니다");
+    } catch (e) { showToast("변경 실패", "error"); }
   };
 
   const fmtDate = (d) => {
@@ -65,13 +85,17 @@ function UserManagementPanel({ showToast }) {
 
       {expanded && (
         <div style={{ marginTop: 14 }}>
-          {users.length === 0 && (
+          {loadingUsers && (
+            <div style={{ textAlign: "center", padding: 16 }}>
+              <span style={{ width: 20, height: 20, border: `2.5px solid ${theme.accent}`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          )}
+          {!loadingUsers && users.length === 0 && (
             <div style={{ textAlign: "center", padding: 16, color: theme.textDim, fontSize: 13 }}>등록된 회원이 없습니다</div>
           )}
-          {users.map((u, idx) => {
-            const hasApi = !!localStorage.getItem(`naver-ad-api-settings-${u.id}`);
+          {!loadingUsers && users.map((u, idx) => {
             return (
-              <div key={u.id} style={{
+              <div key={u.email} style={{
                 padding: "12px 14px", background: theme.surfaceLight, borderRadius: 12,
                 marginBottom: idx < users.length - 1 ? 8 : 0,
                 border: `1px solid ${theme.border}`,
@@ -88,27 +112,24 @@ function UserManagementPanel({ showToast }) {
                     <div style={{ fontSize: 11, color: theme.textDim, marginTop: 2 }}>{u.email}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    {hasApi && (
-                      <span style={{ fontSize: 9, fontWeight: 600, color: theme.accent, background: theme.accentDim, padding: "2px 6px", borderRadius: 6 }}>API</span>
-                    )}
                     <span style={{ fontSize: 10, color: theme.textDim }}>{fmtDate(u.createdAt)}</span>
                   </div>
                 </div>
 
                 {/* 액션 버튼 */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => resetPassword(u.id)} style={{
+                  <button onClick={() => resetPassword(u.email)} style={{
                     flex: 1, padding: "6px 0", borderRadius: 8, border: `1px solid ${theme.border}`,
                     background: theme.surface, fontSize: 11, fontWeight: 600, color: theme.text,
                     cursor: "pointer",
                   }}>비밀번호 변경</button>
-                  <button onClick={() => toggleAdmin(u.id)} style={{
+                  <button onClick={() => toggleAdmin(u.email, u.isAdmin)} style={{
                     flex: 1, padding: "6px 0", borderRadius: 8, border: `1px solid ${theme.border}`,
                     background: u.isAdmin ? theme.accentDim : theme.surface,
                     fontSize: 11, fontWeight: 600, color: u.isAdmin ? theme.accent : theme.text,
                     cursor: "pointer",
                   }}>{u.isAdmin ? "관리자 해제" : "관리자 지정"}</button>
-                  <button onClick={() => deleteUser(u.id)} style={{
+                  <button onClick={() => deleteUser(u.email)} style={{
                     padding: "6px 10px", borderRadius: 8, border: `1px solid ${theme.danger}22`,
                     background: theme.dangerDim, fontSize: 11, fontWeight: 600, color: theme.danger,
                     cursor: "pointer",

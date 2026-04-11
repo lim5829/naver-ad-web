@@ -8,17 +8,15 @@ function App() {
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
 
-  // ─── 자동 로그인 ───
+  // ─── 자동 로그인 (세션 복원) ───
   useEffect(() => {
     const savedSession = localStorage.getItem("naver-ad-session");
     if (savedSession) {
       try {
         const sessionUser = JSON.parse(savedSession);
-        const users = JSON.parse(localStorage.getItem("naver-ad-users") || "[]");
-        const valid = users.find(u => u.id === sessionUser.id && u.email === sessionUser.email);
-        if (valid) {
-          setUser(valid);
-          const apiData = localStorage.getItem(`naver-ad-api-settings-${valid.id}`);
+        if (sessionUser && sessionUser.email) {
+          setUser(sessionUser);
+          const apiData = localStorage.getItem(`naver-ad-api-settings-${sessionUser.id}`);
           if (apiData) {
             setApiSettings(JSON.parse(apiData));
             setPage("main");
@@ -34,7 +32,7 @@ function App() {
 
   const handleLogin = useCallback((u) => {
     setUser(u);
-    localStorage.setItem("naver-ad-session", JSON.stringify({ id: u.id, email: u.email }));
+    localStorage.setItem("naver-ad-session", JSON.stringify(u));
     const apiData = localStorage.getItem(`naver-ad-api-settings-${u.id}`);
     if (apiData) {
       setApiSettings(JSON.parse(apiData));

@@ -1,4 +1,4 @@
-// ─── Login ───
+// ─── Login (KV 서버 인증) ───
 function LoginPage({ onLogin, onGoSignup }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -8,10 +8,21 @@ function LoginPage({ onLogin, onGoSignup }) {
   const handleLogin = async () => {
     if (!email || !password) { setError("이메일과 비밀번호를 입력하세요"); return; }
     setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 600));
-    const users = JSON.parse(localStorage.getItem("naver-ad-users") || "[]");
-    const user = users.find(u => u.email === email && u.password === password);
-    if (user) onLogin(user); else setError("이메일 또는 비밀번호가 일치하지 않습니다");
+    try {
+      const res = await fetch(`${PROXY_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        onLogin(data.user);
+      } else {
+        setError(data.error || "로그인 실패");
+      }
+    } catch (e) {
+      setError("서버 연결 실패: " + e.message);
+    }
     setLoading(false);
   };
 
@@ -33,7 +44,7 @@ function LoginPage({ onLogin, onGoSignup }) {
   );
 }
 
-// ─── Signup ───
+// ─── Signup (KV 서버 인증) ───
 function SignupPage({ onSignup, onGoLogin }) {
   const [name, setName] = useState(""); const [email, setEmail] = useState("");
   const [password, setPassword] = useState(""); const [confirmPw, setConfirmPw] = useState("");
@@ -50,13 +61,22 @@ function SignupPage({ onSignup, onGoLogin }) {
   const handleSignup = async () => {
     const err = validate(); if (err) { setError(err); return; }
     setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 800));
-    const users = JSON.parse(localStorage.getItem("naver-ad-users") || "[]");
-    if (users.find(u => u.email === email)) { setError("이미 등록된 이메일입니다"); setLoading(false); return; }
-    const newUser = { id: Date.now(), name, email, password, createdAt: new Date().toISOString() };
-    users.push(newUser);
-    localStorage.setItem("naver-ad-users", JSON.stringify(users));
-    onSignup(newUser); setLoading(false);
+    try {
+      const res = await fetch(`${PROXY_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        onSignup(data.user);
+      } else {
+        setError(data.error || "가입 실패");
+      }
+    } catch (e) {
+      setError("서버 연결 실패: " + e.message);
+    }
+    setLoading(false);
   };
 
   const pwS = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
