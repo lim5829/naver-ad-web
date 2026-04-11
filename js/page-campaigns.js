@@ -266,12 +266,6 @@ function CampaignAccordion({ campaign, apiSettings, presets, showToast, isFirst,
               <span style={{ width: 24, height: 24, border: `3px solid ${theme.accent}`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
             </div>
           )}
-          {!loading && displayAdgroups.length > 0 && (
-            <div style={{ marginBottom: 10, padding: "8px 12px", background: theme.surface, borderRadius: 10, border: `1px solid ${theme.border}` }}>
-              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>입찰가 프리셋</div>
-              <PresetManager presets={presets} onChange={onPresetsChange} />
-            </div>
-          )}
           {!loading && adgroups.length > 0 && displayAdgroups.length === 0 && !errorMsg && (
             <div style={{ textAlign: "center", padding: 24, color: theme.textDim, fontSize: 13, fontWeight: 500 }}>활성 광고그룹이 없습니다</div>
           )}
@@ -370,6 +364,9 @@ function CampaignsPage({ user, apiSettings, showToast }) {
     }).catch(() => {});
   }, [campaigns, apiSettings]);
 
+  // 프리셋 패널 토글
+  const [presetOpen, setPresetOpen] = useState(false);
+
   return (
     <div style={{ minHeight: "100vh", padding: "0 20px 80px" }}>
       {/* Header */}
@@ -431,25 +428,46 @@ function CampaignsPage({ user, apiSettings, showToast }) {
         </Card>
       )}
 
-      {/* Filter */}
+      {/* Filter + Preset */}
       {!loading && !error && campaigns.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: theme.accent }}>{showAll ? I.list : I.filter}</span>
-            {showAll ? "전체" : "활성만"}
-            <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>({displayCampaigns.length})</span>
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: presetOpen ? 8 : 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: theme.accent }}>{showAll ? I.list : I.filter}</span>
+              {showAll ? "전체" : "활성만"}
+              <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>({displayCampaigns.length})</span>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setPresetOpen(!presetOpen)} style={{
+                background: presetOpen ? theme.blueDim : theme.surfaceLight,
+                border: `1.5px solid ${presetOpen ? theme.blue + "33" : theme.border}`,
+                borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700,
+                color: presetOpen ? theme.blue : theme.textDim,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                transition: "all 0.2s",
+              }}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                입찰가 프리셋
+              </button>
+              <button onClick={() => setShowAll(!showAll)} style={{
+                background: showAll ? theme.accentDim : theme.surfaceLight,
+                border: `1.5px solid ${showAll ? theme.accent + "33" : theme.border}`,
+                borderRadius: 20, padding: "6px 12px", fontSize: 12, fontWeight: 700,
+                color: showAll ? theme.accent : theme.textDim,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                transition: "all 0.2s",
+              }}>
+                {showAll ? <>{I.filter} 활성만</> : <>{I.list} 전체</>}
+              </button>
+            </div>
           </div>
-          <button onClick={() => setShowAll(!showAll)} style={{
-            background: showAll ? theme.accentDim : theme.surfaceLight,
-            border: `1.5px solid ${showAll ? theme.accent + "33" : theme.border}`,
-            borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700,
-            color: showAll ? theme.accent : theme.textDim,
-            cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
-            transition: "all 0.2s",
-          }}>
-            {showAll ? <>{I.filter} 활성만</> : <>{I.list} 전체</>}
-          </button>
-        </div>
+          {presetOpen && (
+            <Card style={{ padding: "10px 14px", marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 600, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>입찰가 프리셋 관리</div>
+              <PresetManager presets={presets} onChange={savePresets} />
+            </Card>
+          )}
+        </>
       )}
 
       {loading && <div><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>}
