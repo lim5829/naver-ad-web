@@ -58,6 +58,152 @@ function MiniChart({ data, color, height = 60, showTooltip }) {
 }
 
 
+// ─── Campaign Cost Card (광고그룹 하위 표시) ───
+function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod, periods, getMonthRange }) {
+  const [open, setOpen] = useState(false);
+  const [adgroupStats, setAdgroupStats] = useState([]);
+  const [loadingAg, setLoadingAg] = useState(false);
+  const [loadedAg, setLoadedAg] = useState(false);
+
+  const pct = totalSales > 0 ? ((cs.salesAmt / totalSales) * 100).toFixed(1) : "0";
+
+  const extractArr = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.data)) return data.data;
+    if (data && typeof data === "object") return [data];
+    return [];
+  };
+
+  const loadAdgroupCost = async () => {
+    if (loadedAg) return;
+    setLoadingAg(true);
+    try {
+      // 광고그룹 목록 로드
+      const agData = await naverApiFetch({ path: `/api/adgroups?campaignId=${campaign.nccCampaignId}`, ...apiSettings });
+      const adgroups = Array.isArray(agData) ? agData : [];
+      if (adgroups.length === 0) { setLoadingAg(false); setLoadedAg(true); return; }
+
+      // 광고그룹별 통계 로드
+      const agIds = adgroups.map(a => a.nccAdgroupId).join(",");
+      const fields = '["clkCnt","impCnt","salesAmt","cpc","ctr"]';
+      const p = periods.find(x => x.key === activePeriod);
+
+      let statsData;
+      if (p.useRange || p.key === "lastMonth") {
+        const r = p.key === "lastMonth" ? getMonthRange(-1) : getMonthRange(0);
+        statsData = await naverApiFetch({ path: `/api/stats-range?ids=${encodeURIComponent(agIds)}&fields=${encodeURIComponent(fields)}&since=${r.since}&until=${r.until}`, ...apiSettings });
+      } else {
+        statsData = await naverApiFetch({ path: `/api/stats-summary?ids=${encodeURIComponent(agIds)}&fields=${encodeURIComponent(fields)}&datePreset=${p.preset}`, ...apiSettings });
+      }
+
+      const arr = extractArr(statsData);
+      const byAg = {};
+      arr.forEach(item => {
+        const id = item.id || item.nccAdgroupId;
+        if (!byAg[id]) byAg[id] = { clkCnt: 0, impCnt: 0, salesAmt: 0 };
+        byAg[id].clkCnt += Number(item.clkCnt) || 0;
+        byAg[id].impCnt += Number(item.impCnt) || 0;
+        byAg[id].salesAmt += Number(item.salesAmt) || 0;
+      });
+
+      const result = adgroups.map(ag => {
+        const s = byAg[ag.nccAdgroupId] || { clkCnt: 0, impCnt: 0, salesAmt: 0 };
+        s.cpc = s.clkCnt > 0 ? Math.round(s.salesAmt / s.clkCnt) : 0;
+        s.ctr = s.impCnt > 0 ? ((s.clkCnt / s.impCnt) * 100).toFixed(2) : "0.00";
+        return { ...ag, stats: s };
+      }).filter(ag => ag.stats.salesAmt > 0).sort((a, b) => b.stats.salesAmt - a.stats.salesAmt);
+
+      setAdgroupStats(result);
+    } catch (e) { /* 무시 */ }
+    setLoadingAg(false); setLoadedAg(true);
+  };
+
+  const handleToggle = () => {
+    if (!open && !loadedAg) loadAdgroupCost();
+    setOpen(!open);
+  };
+
+  return (
+    <Card style={{ padding: 0, marginBottom: 8, animation: "fadeUp 0.25s ease", overflow: "hidden" }}>
+      {/* 캠페인 헤더 — 클릭하면 광고그룹 펼침 */}
+      <div onClick={handleToggle} style={{ padding: "14px 16px", cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke={open ? theme.accent : theme.textDim} strokeWidth="2.5" style={{ transition: "transform 0.2s", transform: open ? "rotate(90deg)" : "rotate(0deg)", flexShrink: 0 }}>
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{campaign.name}</span>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.danger, marginLeft: 8, whiteSpace: "nowrap" }}>
+            {fmtNum(cs.salesAmt)}원
+            <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 500, marginLeft: 3 }}>({pct}%)</span>
+          </span>
+        </div>
+        <div style={{ height: 4, borderRadius: 2, background: theme.surfaceLight, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{ height: "100%", borderRadius: 2, background: theme.accent, width: pct + "%", transition: "width 0.5s ease" }} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+          {[
+            { label: "노출", value: fmtNum(cs.impCnt), color: theme.text },
+            { label: "클릭", value: fmtNum(cs.clkCnt), color: theme.accent },
+            { label: "CPC", value: fmtNum(cs.cpc) + "원", color: theme.text },
+            { label: "CTR", value: cs.ctr + "%", color: theme.blue },
+          ].map((x, i) => (
+            <div key={i} style={{ background: theme.surfaceLight, borderRadius: 8, padding: "6px 4px", textAlign: "center" }}>
+              <div style={{ fontSize: 8, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>{x.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: x.color }}>{x.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 광고그룹 하위 */}
+      {open && (
+        <div style={{ borderTop: `1px solid ${theme.border}`, padding: "10px 14px", background: theme.bg }}>
+          {loadingAg && (
+            <div style={{ textAlign: "center", padding: 14 }}>
+              <span style={{ width: 18, height: 18, border: `2px solid ${theme.accent}`, borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          )}
+          {!loadingAg && adgroupStats.length === 0 && (
+            <div style={{ textAlign: "center", padding: 10, fontSize: 12, color: theme.textDim }}>비용이 발생한 광고그룹이 없습니다</div>
+          )}
+          {!loadingAg && adgroupStats.map((ag, i) => {
+            const agPct = cs.salesAmt > 0 ? ((ag.stats.salesAmt / cs.salesAmt) * 100).toFixed(1) : "0";
+            return (
+              <div key={ag.nccAdgroupId} style={{ padding: "10px 0", borderBottom: i < adgroupStats.length - 1 ? `1px solid ${theme.border}` : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: theme.text, display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
+                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: theme.blue, display: "inline-block", flexShrink: 0 }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ag.name}</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: theme.danger, whiteSpace: "nowrap", marginLeft: 6 }}>
+                    {fmtNum(ag.stats.salesAmt)}원
+                    <span style={{ fontSize: 9, color: theme.textDim, fontWeight: 500, marginLeft: 2 }}>({agPct}%)</span>
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 4 }}>
+                  {[
+                    { label: "노출", value: fmtNum(ag.stats.impCnt), color: theme.text },
+                    { label: "클릭", value: fmtNum(ag.stats.clkCnt), color: theme.accent },
+                    { label: "CPC", value: fmtNum(ag.stats.cpc) + "원", color: theme.text },
+                    { label: "CTR", value: ag.stats.ctr + "%", color: theme.blue },
+                  ].map((x, j) => (
+                    <div key={j} style={{ background: theme.surface, borderRadius: 6, padding: "4px 3px", textAlign: "center", border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontSize: 7, color: theme.textDim, fontWeight: 600, marginBottom: 1 }}>{x.label}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: x.color }}>{x.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── Cost Page (폴리싱) ───
 function CostPage({ user, apiSettings, showToast }) {
   const [activePeriod, setActivePeriod] = useState("today");
@@ -275,50 +421,16 @@ function CostPage({ user, apiSettings, showToast }) {
             </Card>
           )}
 
-          {/* 캠페인별 상세 — 바로 표시 */}
+          {/* 캠페인별 상세 — 바로 표시 + 광고그룹 하위 */}
           {activeCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
                 캠페인별 상세
                 <span style={{ fontSize: 11, color: theme.textDim, fontWeight: 500 }}>{activeCamps.length}개</span>
               </div>
-              {activeCamps.map((c, idx) => {
-                const cs = campaignStats[c.nccCampaignId];
-                const pct = totalSales > 0 ? ((cs.salesAmt / totalSales) * 100).toFixed(1) : "0";
-                return (
-                  <Card key={c.nccCampaignId} style={{ padding: "14px 16px", marginBottom: 8, animation: "fadeUp 0.25s ease" }}>
-                    {/* 캠페인 이름 + 비용 */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: theme.accent, display: "inline-block", flexShrink: 0 }} />
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: theme.danger, marginLeft: 8, whiteSpace: "nowrap" }}>
-                        {fmtNum(cs.salesAmt)}원
-                        <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 500, marginLeft: 3 }}>({pct}%)</span>
-                      </span>
-                    </div>
-                    {/* 비율 바 */}
-                    <div style={{ height: 4, borderRadius: 2, background: theme.surfaceLight, marginBottom: 10, overflow: "hidden" }}>
-                      <div style={{ height: "100%", borderRadius: 2, background: theme.accent, width: pct + "%", transition: "width 0.5s ease" }} />
-                    </div>
-                    {/* 미니 통계 */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-                      {[
-                        { label: "노출", value: fmtNum(cs.impCnt), color: theme.text },
-                        { label: "클릭", value: fmtNum(cs.clkCnt), color: theme.accent },
-                        { label: "CPC", value: fmtNum(cs.cpc) + "원", color: theme.text },
-                        { label: "CTR", value: cs.ctr + "%", color: theme.blue },
-                      ].map((x, i) => (
-                        <div key={i} style={{ background: theme.surfaceLight, borderRadius: 8, padding: "6px 4px", textAlign: "center" }}>
-                          <div style={{ fontSize: 8, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>{x.label}</div>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: x.color }}>{x.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                );
-              })}
+              {activeCamps.map((c, idx) => (
+                <CostCampaignCard key={c.nccCampaignId} campaign={c} cs={campaignStats[c.nccCampaignId]} totalSales={totalSales} apiSettings={apiSettings} activePeriod={activePeriod} periods={periods} getMonthRange={getMonthRange} />
+              ))}
             </div>
           )}
 
