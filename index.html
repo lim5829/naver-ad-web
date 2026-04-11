@@ -1,81 +1,81 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<meta name="theme-color" content="#03C75A" />
-<title>네이버 광고 관리</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2303C75A'%3E%3Cpath d='M16.27 3H7.73A4.73 4.73 0 0 0 3 7.73v8.54A4.73 4.73 0 0 0 7.73 21h8.54A4.73 4.73 0 0 0 21 16.27V7.73A4.73 4.73 0 0 0 16.27 3zm-2.1 12.27h-2.4l-2.6-3.6v3.6H6.97V8.73h2.4l2.6 3.56V8.73h2.2v6.54z'/%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://cdn.jsdelivr.net" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { background: #F5F6FA; margin: 0; min-height: 100vh; font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, sans-serif; }
-  input::placeholder { color: #8892A699; }
-  button { font-family: inherit; }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #E2E6EF; border-radius: 4px; }
-  #root { min-height: 100vh; width: 100%; }
-  #root > div, #root > div > div, #root > div > div > div { width: 100%; box-sizing: border-box; }
-  .loader { width:32px; height:32px; border:3px solid #03C75A; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg) } }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#03C75A" />
+  <title>네이버 광고 관리</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2303C75A'%3E%3Cpath d='M16.27 3H7.73A4.73 4.73 0 0 0 3 7.73v8.54A4.73 4.73 0 0 0 7.73 21h8.54A4.73 4.73 0 0 0 21 16.27V7.73A4.73 4.73 0 0 0 16.27 3zm-2.1 12.27h-2.4l-2.6-3.6v3.6H6.97V8.73h2.4l2.6 3.56V8.73h2.2v6.54z'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { background: #F5F6FA; margin: 0; min-height: 100vh; font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, sans-serif; }
+    input::placeholder { color: #8892A699; }
+    button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #E2E6EF; border-radius: 4px; }
+    #root { min-height: 100vh; width: 100%; }
+    #root > div, #root > div > div, #root > div > div > div { width: 100%; box-sizing: border-box; }
+    .loader { width:32px; height:32px; border:3px solid #03C75A; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg) } }
+  </style>
 </head>
 <body>
-<div id="root"><div class="loader"></div></div>
+  <div id="root"><div class="loader"></div></div>
 
-<!--
-  📁 파일 구조 (로드 순서대로):
-  1. theme.js        — 테마, 설정, 프록시 URL
-  2. icons.js        — SVG 아이콘
-  3. api.js          — API 호출 헬퍼
-  4. ui.js           — 공통 UI 컴포넌트
-  5. page-auth.js    — 로그인/회원가입
-  6. page-settings.js— API 설정
-  7. page-campaigns.js— 캠페인 관리
-  8. page-cost.js    — 광고비 통계
-  9. app.js          — 메인 App 라우팅
--->
+  <!--
+    📁 파일 구조 (로드 순서대로):
+    1. theme.js         — 테마, 설정, 프록시 URL
+    2. icons.js         — SVG 아이콘
+    3. api.js           — API 호출 헬퍼
+    4. ui.js            — 공통 UI 컴포넌트
+    5. page-auth.js     — 로그인/회원가입
+    6. page-settings.js — API 설정
+    7. page-campaigns.js— 캠페인 관리
+    8. page-cost.js     — 광고비 통계 + 탭바
+    9. page-rank.js     — 순위 모니터링 ★ NEW
+   10. app.js           — 메인 App 라우팅
+  -->
 
-<script>
-// Babel standalone의 외부 src JSX 로딩 문제를 우회:
-// 각 파일을 fetch → 합쳐서 한 번에 Babel 변환 후 실행
-const files = [
-  'js/theme.js',
-  'js/icons.js',
-  'js/api.js',
-  'js/ui.js',
-  'js/page-auth.js',
-  'js/page-settings.js',
-  'js/page-campaigns.js',
-  'js/page-cost.js',
-  'js/app.js',
-];
+  <script>
+    const files = [
+      'js/theme.js',
+      'js/icons.js',
+      'js/api.js',
+      'js/ui.js',
+      'js/page-auth.js',
+      'js/page-settings.js',
+      'js/page-campaigns.js',
+      'js/page-cost.js',
+      'js/page-rank.js',
+      'js/app.js',
+    ];
 
-(async () => {
-  try {
-    const sources = await Promise.all(
-      files.map(f => fetch(f + '?v=' + Date.now()).then(r => {
-        if (!r.ok) throw new Error(f + ' 로드 실패: ' + r.status);
-        return r.text();
-      }))
-    );
-    const combined = sources.join('\n\n');
-    const transformed = Babel.transform(combined, { presets: ['env', 'react'] }).code;
-    const script = document.createElement('script');
-    script.textContent = transformed;
-    document.body.appendChild(script);
-  } catch (e) {
-    document.getElementById('root').innerHTML =
-      '<div style="padding:40px;text-align:center;color:#E8384F;font-size:14px;font-weight:600">' +
-      '앱 로드 실패<br><br><span style="color:#8892A6;font-size:12px">' + e.message + '</span></div>';
-    console.error('App load error:', e);
-  }
-})();
-</script>
+    (async () => {
+      try {
+        const sources = await Promise.all(
+          files.map(f => fetch(f + '?v=' + Date.now()).then(r => {
+            if (!r.ok) throw new Error(f + ' 로드 실패: ' + r.status);
+            return r.text();
+          }))
+        );
+        const combined = sources.join('\n\n');
+        const transformed = Babel.transform(combined, { presets: ['env', 'react'] }).code;
+        const script = document.createElement('script');
+        script.textContent = transformed;
+        document.body.appendChild(script);
+      } catch (e) {
+        document.getElementById('root').innerHTML =
+          '<div style="padding:40px;text-align:center;color:#E8384F;font-size:14px;font-weight:600">' +
+          '앱 로드 실패<br><br><span style="color:#8892A6;font-size:12px">' + e.message + '</span></div>';
+        console.error('App load error:', e);
+      }
+    })();
+  </script>
 </body>
 </html>
