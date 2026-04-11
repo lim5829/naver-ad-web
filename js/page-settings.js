@@ -157,9 +157,16 @@ function ApiSettingsPage({ user, onLogout, onSave, onGoCampaigns, apiSettings, s
   const handleSave = async () => {
     if (!customerId || !apiKey || !secretKey) return;
     setLoading(true);
-    await new Promise(r => setTimeout(r, 400));
     const settings = { customerId, apiKey, secretKey, managerLoginId, savedAt: new Date().toISOString() };
+    // localStorage + KV 동시 저장
     localStorage.setItem(`naver-ad-api-settings-${user.id}`, JSON.stringify(settings));
+    try {
+      await fetch(`${PROXY_BASE}/api/auth/api-settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, settings }),
+      });
+    } catch (e) { /* KV 저장 실패해도 localStorage는 저장됨 */ }
     setSaved(true); setLoading(false); onSave?.(settings);
   };
 

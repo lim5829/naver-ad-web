@@ -8,6 +8,30 @@ function App() {
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
 
+  // ─── KV에서 API 설정 로드 ───
+  const loadApiSettings = useCallback(async (sessionUser) => {
+    // 1. localStorage 먼저 확인
+    const localData = localStorage.getItem(`naver-ad-api-settings-${sessionUser.id}`);
+    if (localData) {
+      setApiSettings(JSON.parse(localData));
+      setPage("main");
+      return;
+    }
+    // 2. KV에서 로드
+    try {
+      const res = await fetch(`${PROXY_BASE}/api/auth/api-settings?email=${encodeURIComponent(sessionUser.email)}`);
+      const data = await res.json();
+      if (data && data.customerId) {
+        localStorage.setItem(`naver-ad-api-settings-${sessionUser.id}`, JSON.stringify(data));
+        setApiSettings(data);
+        setPage("main");
+        return;
+      }
+    } catch (e) { /* KV 로드 실패 */ }
+    // 3. 둘 다 없으면 설정 페이지
+    setPage("settings");
+  }, []);
+
   // ─── 자동 로그인 (세션 복원) ───
   useEffect(() => {
     const savedSession = localStorage.getItem("naver-ad-session");
@@ -16,13 +40,7 @@ function App() {
         const sessionUser = JSON.parse(savedSession);
         if (sessionUser && sessionUser.email) {
           setUser(sessionUser);
-          const apiData = localStorage.getItem(`naver-ad-api-settings-${sessionUser.id}`);
-          if (apiData) {
-            setApiSettings(JSON.parse(apiData));
-            setPage("main");
-          } else {
-            setPage("settings");
-          }
+          loadApiSettings(sessionUser);
           return;
         }
       } catch (e) {}
@@ -33,15 +51,9 @@ function App() {
   const handleLogin = useCallback((u) => {
     setUser(u);
     localStorage.setItem("naver-ad-session", JSON.stringify(u));
-    const apiData = localStorage.getItem(`naver-ad-api-settings-${u.id}`);
-    if (apiData) {
-      setApiSettings(JSON.parse(apiData));
-      setPage("main");
-    } else {
-      setPage("settings");
-    }
+    loadApiSettings(u);
     showToast(`${u.name}님 환영합니다!`);
-  }, [showToast]);
+  }, [showToast, loadApiSettings]);
 
   const handleLogout = useCallback(() => {
     setUser(null);
