@@ -275,64 +275,50 @@ function CostPage({ user, apiSettings, showToast }) {
             </Card>
           )}
 
-          {/* 캠페인별 상세 */}
+          {/* 캠페인별 상세 — 바로 표시 */}
           {activeCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <button onClick={() => setExpanded(!expanded)} style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: theme.surface,
-                border: `1.5px solid ${expanded ? theme.accent + "44" : theme.border}`,
-                borderRadius: expanded ? "16px 16px 0 0" : 16, padding: "14px 16px",
-                cursor: "pointer", boxShadow: expanded ? `0 4px 16px ${theme.accentGlow}` : theme.cardShadow,
-                transition: "all 0.25s",
-              }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
-                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                  {activeCamps.length}개
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ transition: "transform 0.25s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
-                </span>
-              </button>
-              {expanded && (
-                <div style={{ background: theme.bg, border: `1.5px solid ${theme.accent}22`, borderTop: "none", borderRadius: "0 0 16px 16px", padding: 14 }}>
-                  {activeCamps.map((c, idx) => {
-                    const cs = campaignStats[c.nccCampaignId];
-                    const pct = totalSales > 0 ? ((cs.salesAmt / totalSales) * 100).toFixed(1) : "0";
-                    return (
-                      <div key={c.nccCampaignId} style={{ marginBottom: idx < activeCamps.length - 1 ? 12 : 0, animation: "fadeUp 0.25s ease" }}>
-                        {/* 캠페인 이름 + 비율 */}
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: theme.accent, display: "inline-block", flexShrink: 0 }} />
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: theme.danger, marginLeft: 8, whiteSpace: "nowrap" }}>
-                            {fmtNum(cs.salesAmt)}원
-                            <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 500, marginLeft: 3 }}>({pct}%)</span>
-                          </span>
-                        </div>
-                        {/* 비율 바 */}
-                        <div style={{ height: 4, borderRadius: 2, background: theme.surfaceLight, marginBottom: 8, overflow: "hidden" }}>
-                          <div style={{ height: "100%", borderRadius: 2, background: theme.accent, width: pct + "%", transition: "width 0.5s ease" }} />
-                        </div>
-                        {/* 미니 통계 */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-                          {[
-                            { label: "노출", value: fmtNum(cs.impCnt), color: theme.text },
-                            { label: "클릭", value: fmtNum(cs.clkCnt), color: theme.accent },
-                            { label: "CPC", value: fmtNum(cs.cpc) + "원", color: theme.text },
-                            { label: "CTR", value: cs.ctr + "%", color: theme.blue },
-                          ].map((x, i) => (
-                            <div key={i} style={{ background: theme.surface, borderRadius: 8, padding: "6px 4px", textAlign: "center", border: `1px solid ${theme.border}` }}>
-                              <div style={{ fontSize: 8, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>{x.label}</div>
-                              <div style={{ fontSize: 11, fontWeight: 800, color: x.color }}>{x.value}</div>
-                            </div>
-                          ))}
-                        </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                캠페인별 상세
+                <span style={{ fontSize: 11, color: theme.textDim, fontWeight: 500 }}>{activeCamps.length}개</span>
+              </div>
+              {activeCamps.map((c, idx) => {
+                const cs = campaignStats[c.nccCampaignId];
+                const pct = totalSales > 0 ? ((cs.salesAmt / totalSales) * 100).toFixed(1) : "0";
+                return (
+                  <Card key={c.nccCampaignId} style={{ padding: "14px 16px", marginBottom: 8, animation: "fadeUp 0.25s ease" }}>
+                    {/* 캠페인 이름 + 비용 */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: theme.accent, display: "inline-block", flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: theme.danger, marginLeft: 8, whiteSpace: "nowrap" }}>
+                        {fmtNum(cs.salesAmt)}원
+                        <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 500, marginLeft: 3 }}>({pct}%)</span>
+                      </span>
+                    </div>
+                    {/* 비율 바 */}
+                    <div style={{ height: 4, borderRadius: 2, background: theme.surfaceLight, marginBottom: 10, overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: 2, background: theme.accent, width: pct + "%", transition: "width 0.5s ease" }} />
+                    </div>
+                    {/* 미니 통계 */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                      {[
+                        { label: "노출", value: fmtNum(cs.impCnt), color: theme.text },
+                        { label: "클릭", value: fmtNum(cs.clkCnt), color: theme.accent },
+                        { label: "CPC", value: fmtNum(cs.cpc) + "원", color: theme.text },
+                        { label: "CTR", value: cs.ctr + "%", color: theme.blue },
+                      ].map((x, i) => (
+                        <div key={i} style={{ background: theme.surfaceLight, borderRadius: 8, padding: "6px 4px", textAlign: "center" }}>
+                          <div style={{ fontSize: 8, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>{x.label}</div>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: x.color }}>{x.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
 
