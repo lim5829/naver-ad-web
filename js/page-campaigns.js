@@ -367,8 +367,126 @@ function CampaignsPage({ user, apiSettings, showToast }) {
   // 프리셋 패널 토글
   const [presetOpen, setPresetOpen] = useState(false);
 
+  // 일괄 입찰가 변경
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkBid, setBulkBid] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+
+  const handleBulkBid = async () => {
+    const val = parseInt(bulkBid);
+    if (isNaN(val) || val < 70) { showToast("최소 입찰가는 70원입니다", "error"); return; }
+    setBulkLoading(true);
+
+    try {
+      // 모든 활성 캠페인의 광고그룹 로드
+      const allAdgroups = [];
+      for (const c of activeCampaigns) {
+        try {
+          const data = await naverApiFetch({ path: `/api/adgroups?campaignId=${c.nccCampaignId}`, ...apiSettings });
+          const ags = Array.isArray(data) ? data : [];
+          const activeAgs = ags.filter(a => (a.userStatus || a.status) === "ELIGIBLE");
+          allAdgroups.push(...activeAgs);
+        } catch (e) { /* 무시 */ }
+      }
+
+      if (allAdgroups.length === 0) { showToast("활성 광고그룹이 없습니다", "error"); setBulkLoading(false); return; }
+
+      setBulkProgress({ done: 0, total: allAdgroups.length });
+      let success = 0;
+      for (let i = 0; i < allAdgroups.length; i++) {
+        try {
+          await naverApiFetch({
+            method: "PUT",
+            path: `/api/adgroups/${allAdgroups[i].nccAdgroupId}/bid`,
+            ...apiSettings,
+            body: { bidAmt: val },
+          });
+          success++;
+        } catch (e) { /* 실패 무시 */ }
+        setBulkProgress({ done: i + 1, total: allAdgroups.length });
+      }
+
+      showToast(`${success}/${allAdgroups.length}개 광고그룹 입찰가를 ${fmtNum(val)}원으로 변경`);
+      setBulkOpen(false); setBulkBid("");
+    } catch (e) {
+      showToast(`일괄 변경 실패: ${e.message}`, "error");
+    }
+    setBulkLoading(false); setBulkProgress({ done: 0, total: 0 });
+  };
+
   return (
     <div style={{ minHeight: "100vh", padding: "0 20px 80px" }}>
+      {/* 일괄 변경 모달 */}
+      {bulkOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={() => !bulkLoading && setBulkOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "relative", width: "100%", maxWidth: 360, background: theme.surface, borderRadius: 20, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: theme.text, marginBottom: 4 }}>입찰가 일괄 변경</div>
+            <div style={{ fontSize: 12, color: theme.textDim, marginBottom: 16, lineHeight: 1.5 }}>
+              모든 활성 캠페인의 활성 광고그룹 입찰가를 한번에 변경합니다
+            </div>
+
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input type="number" value={bulkBid} onChange={e => setBulkBid(e.target.value)}
+                placeholder="입찰가 입력 (최소 70)" disabled={bulkLoading}
+                onKeyDown={e => { if (e.key === "Enter") handleBulkBid(); }}
+                style={{
+                  width: "100%", padding: "14px 42px 14px 14px", borderRadius: 12,
+                  border: `1.5px solid ${theme.border}`, fontSize: 16, fontWeight: 700,
+                  fontFamily: "'JetBrains Mono', monospace", color: theme.text,
+                  outline: "none", background: theme.surfaceLight,
+                }} />
+              <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: theme.textDim, fontWeight: 600, pointerEvents: "none" }}>원</span>
+            </div>
+
+            {/* 프리셋 버튼 */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {presets.map((p, i) => (
+                <button key={i} onClick={() => setBulkBid(String(p))} disabled={bulkLoading} style={{
+                  background: parseInt(bulkBid) === p ? theme.accentDim : theme.surfaceLight,
+                  border: `1.5px solid ${parseInt(bulkBid) === p ? theme.accent + "55" : "transparent"}`,
+                  borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700,
+                  color: parseInt(bulkBid) === p ? theme.accent : theme.textDim,
+                  cursor: "pointer", transition: "all 0.15s",
+                }}>{fmtNum(p)}</button>
+              ))}
+            </div>
+
+            {/* 진행 상태 */}
+            {bulkLoading && bulkProgress.total > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: theme.textDim, fontWeight: 600, marginBottom: 4 }}>
+                  <span>변경 중...</span>
+                  <span>{bulkProgress.done}/{bulkProgress.total}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: theme.surfaceLight, overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 3, background: theme.accent, width: ((bulkProgress.done / bulkProgress.total) * 100) + "%", transition: "width 0.3s" }} />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setBulkOpen(false)} disabled={bulkLoading} style={{
+                flex: 1, padding: "12px 0", borderRadius: 12, border: `1.5px solid ${theme.border}`,
+                background: theme.surface, fontSize: 14, fontWeight: 700, color: theme.textDim,
+                cursor: bulkLoading ? "not-allowed" : "pointer",
+              }}>취소</button>
+              <button onClick={handleBulkBid} disabled={bulkLoading || !bulkBid || parseInt(bulkBid) < 70} style={{
+                flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
+                background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentDark})`,
+                fontSize: 14, fontWeight: 700, color: "#fff",
+                cursor: (bulkLoading || !bulkBid) ? "not-allowed" : "pointer",
+                opacity: (bulkLoading || !bulkBid) ? 0.5 : 1,
+                boxShadow: `0 4px 12px ${theme.accentGlow}`,
+              }}>
+                {bulkLoading ? "변경 중..." : "일괄 변경"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 16px", position: "sticky", top: 0, zIndex: 10, background: theme.bg + "ee", backdropFilter: "blur(12px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -380,12 +498,23 @@ function CampaignsPage({ user, apiSettings, showToast }) {
             <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 500 }}>{user.name}</div>
           </div>
         </div>
-        <button onClick={() => fetchCampaigns(true)} disabled={refreshing} style={{
-          background: theme.surface, border: `1.5px solid ${theme.border}`, borderRadius: 12,
-          width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: theme.accent, boxShadow: theme.cardShadow,
-          transition: "transform 0.5s", transform: refreshing ? "rotate(360deg)" : "none",
-        }}>{I.refresh}</button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => setBulkOpen(true)} style={{
+            background: theme.surface, border: `1.5px solid ${theme.border}`, borderRadius: 12,
+            height: 40, padding: "0 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+            cursor: "pointer", color: theme.text, boxShadow: theme.cardShadow,
+            fontSize: 11, fontWeight: 700,
+          }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.accent} strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            일괄변경
+          </button>
+          <button onClick={() => fetchCampaigns(true)} disabled={refreshing} style={{
+            background: theme.surface, border: `1.5px solid ${theme.border}`, borderRadius: 12,
+            width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: theme.accent, boxShadow: theme.cardShadow,
+            transition: "transform 0.5s", transform: refreshing ? "rotate(360deg)" : "none",
+          }}>{I.refresh}</button>
+        </div>
       </div>
 
       {/* Summary */}
