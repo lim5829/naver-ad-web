@@ -115,6 +115,81 @@ function BidEditor({ adgroup, apiSettings, presets, showToast }) {
   );
 }
 
+// ─── Budget Editor (하루예산) ───
+function BudgetEditor({ adgroup, apiSettings, showToast }) {
+  const currentBudget = adgroup.dailyBudget || 0;
+  const [budget, setBudget] = useState(String(currentBudget));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  const handleSave = async () => {
+    const val = parseInt(budget);
+    if (isNaN(val) || val < 0) { showToast("올바른 금액을 입력하세요", "error"); return; }
+    if (val === currentBudget) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await naverApiFetch({
+        method: "PUT",
+        path: `/api/adgroups/${adgroup.nccAdgroupId}/budget`,
+        ...apiSettings,
+        body: { dailyBudget: val },
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      showToast(`하루예산 ${val === 0 ? "제한없음" : fmtNum(val) + "원"}으로 변경`);
+      setEditing(false);
+    } catch (e) {
+      showToast(`변경 실패: ${e.message}`, "error");
+    }
+    setSaving(false);
+  };
+
+  if (!editing) {
+    return (
+      <div onClick={() => setEditing(true)} style={{
+        display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+        padding: "6px 10px", background: theme.surfaceLight, borderRadius: 8,
+        border: `1px solid ${saved ? theme.accent + "44" : "transparent"}`,
+        transition: "all 0.2s",
+      }}>
+        <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 600 }}>하루예산</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: currentBudget > 0 ? theme.text : theme.textDim }}>
+          {currentBudget > 0 ? fmtNum(currentBudget) + "원" : "제한없음"}
+        </span>
+        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        {saved && <span style={{ color: theme.accent }}>{I.check}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, animation: "fadeUp 0.2s ease" }}>
+      <div style={{ position: "relative", flex: 1 }}>
+        <input type="number" value={budget} onChange={e => setBudget(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+          autoFocus
+          style={{
+            width: "100%", background: theme.surfaceLight,
+            border: `1.5px solid ${theme.accent}44`, borderRadius: 8,
+            padding: "6px 32px 6px 8px", fontSize: 13, fontWeight: 700,
+            color: theme.text, outline: "none",
+            fontFamily: "'JetBrains Mono', monospace",
+          }} />
+        <span style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: theme.textDim, fontWeight: 600, pointerEvents: "none" }}>원</span>
+      </div>
+      <button onClick={handleSave} disabled={saving} style={{
+        background: theme.accent, color: "#fff", border: "none", borderRadius: 8,
+        padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+      }}>{saving ? "..." : "저장"}</button>
+      <button onClick={() => { setEditing(false); setBudget(String(currentBudget)); }} style={{
+        background: theme.surfaceLight, color: theme.textDim, border: `1px solid ${theme.border}`,
+        borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+      }}>취소</button>
+    </div>
+  );
+}
+
 // ─── Adgroup Row ───
 function AdgroupRow({ adgroup, apiSettings, presets, showToast }) {
   const status = adgroup.userStatus || adgroup.status;
@@ -141,6 +216,9 @@ function AdgroupRow({ adgroup, apiSettings, presets, showToast }) {
         </span>
       </div>
       <BidEditor adgroup={adgroup} apiSettings={apiSettings} presets={presets} showToast={showToast} />
+      <div style={{ marginTop: 8 }}>
+        <BudgetEditor adgroup={adgroup} apiSettings={apiSettings} showToast={showToast} />
+      </div>
       <style>{`@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }`}</style>
     </div>
   );
