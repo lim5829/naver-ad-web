@@ -78,7 +78,6 @@ function App() {
         {page === "signup" && <SignupPage onSignup={handleLogin} onGoLogin={() => setPage("login")} />}
         {page === "settings" && user && <ApiSettingsPage user={user} apiSettings={apiSettings} onLogout={handleLogout} onSave={handleApiSave} onGoCampaigns={() => setPage("main")} />}
         {page === "main" && user && apiSettings && tab === "campaigns" && <CampaignsPage user={user} apiSettings={apiSettings} onLogout={handleLogout} showToast={showToast} />}
-        {page === "main" && user && apiSettings && tab === "rank" && <RankPage user={user} apiSettings={apiSettings} showToast={showToast} />}
         {page === "main" && user && apiSettings && tab === "cost" && <CostPage user={user} apiSettings={apiSettings} showToast={showToast} />}
         {page === "main" && user && apiSettings && tab === "settings" && <ApiSettingsPage user={user} apiSettings={apiSettings} onLogout={handleLogout} onSave={(s) => { setApiSettings(s); showToast("API 설정이 저장되었습니다!"); }} onGoCampaigns={() => setTab("campaigns")} />}
         {page === "main" && user && apiSettings && <TabBar active={tab} onChange={setTab} />}
