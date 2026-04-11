@@ -22,33 +22,43 @@ function TabBar({ active, onChange }) {
   );
 }
 
-// ─── Mini Bar Chart ───
-function MiniChart({ data, color, height = 60 }) {
+// ─── Mini Bar Chart (개선) ───
+function MiniChart({ data, color, height = 60, showTooltip }) {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map(d => d.value), 1);
-  const barW = Math.min(Math.floor((100 / data.length) - 1), 12);
+  const barW = Math.min(Math.floor((100 / data.length) - 1), 14);
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height, padding: "4px 0" }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-          <div style={{
-            width: "100%", maxWidth: barW, minWidth: 4,
-            height: Math.max((d.value / max) * (height - 16), 2),
-            background: color || theme.accent, borderRadius: 2,
-            opacity: 0.4 + (d.value / max) * 0.6,
-            transition: "height 0.3s",
-          }} />
-          {data.length <= 15 && (
-            <span style={{ fontSize: 8, color: theme.textDim, fontWeight: 500 }}>{d.label}</span>
-          )}
-        </div>
-      ))}
+      {data.map((d, i) => {
+        const barH = Math.max((d.value / max) * (height - 16), 2);
+        const isMax = d.value === max && d.value > 0;
+        return (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, position: "relative" }}>
+            {isMax && showTooltip && (
+              <div style={{ fontSize: 8, fontWeight: 700, color, position: "absolute", top: -12, whiteSpace: "nowrap" }}>
+                {typeof d.value === "number" ? fmtNum(d.value) : d.value}
+              </div>
+            )}
+            <div style={{
+              width: "100%", maxWidth: barW, minWidth: 4,
+              height: barH,
+              background: isMax ? color : (color || theme.accent),
+              borderRadius: 3,
+              opacity: isMax ? 1 : 0.35 + (d.value / max) * 0.55,
+              transition: "height 0.4s ease",
+            }} />
+            {data.length <= 15 && (
+              <span style={{ fontSize: 8, color: theme.textDim, fontWeight: 500 }}>{d.label}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 
-// ─── Cost Page ───
+// ─── Cost Page (폴리싱) ───
 function CostPage({ user, apiSettings, showToast }) {
   const [activePeriod, setActivePeriod] = useState("today");
   const [campaigns, setCampaigns] = useState([]);
@@ -59,6 +69,7 @@ function CostPage({ user, apiSettings, showToast }) {
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [campsLoaded, setCampsLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const periods = [
     { key: "today", label: "오늘", preset: "today" },
@@ -102,12 +113,13 @@ function CostPage({ user, apiSettings, showToast }) {
     return c;
   }, [apiSettings, campsLoaded, campaigns]);
 
-  const loadPeriod = useCallback(async (periodKey) => {
-    setLoading(true); setError(""); setStats(null); setCampaignStats({}); setDailyData([]); setExpanded(false);
+  const loadPeriod = useCallback(async (periodKey, isRefresh) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    setError(""); setStats(null); setCampaignStats({}); setDailyData([]); setExpanded(false);
     const p = periods.find(x => x.key === periodKey);
     try {
       const camps = await loadCampaigns();
-      if (camps.length === 0) { setLoading(false); return; }
+      if (camps.length === 0) { setLoading(false); setRefreshing(false); return; }
       const idsStr = camps.map(c => c.nccCampaignId).join(",");
       const fields = '["clkCnt","impCnt","salesAmt","cpc","ctr"]';
 
@@ -143,115 +155,179 @@ function CostPage({ user, apiSettings, showToast }) {
           setDailyData(sorted.map(([dt, v]) => ({ date: dt, label: dt.slice(8), ...v })));
         } catch(e) { setDailyData([]); }
       }
+      if (isRefresh) showToast("새로고침 완료");
     } catch (e) { setError(e.message); }
-    setLoading(false);
+    setLoading(false); setRefreshing(false);
   }, [apiSettings, loadCampaigns]);
 
   useEffect(() => { loadPeriod(activePeriod); }, [activePeriod]);
 
-  const StatGrid = ({ s, compact }) => (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-      {[
-        { label: "노출수", value: typeof s.impCnt === "number" ? fmtNum(s.impCnt) : s.impCnt, color: theme.text },
-        { label: "클릭수", value: typeof s.clkCnt === "number" ? fmtNum(s.clkCnt) : s.clkCnt, color: theme.accent, big: true },
-        { label: "평균CPC", value: typeof s.cpc === "number" ? fmtNum(s.cpc) + "원" : s.cpc, color: theme.text },
-        { label: "총비용", value: typeof s.salesAmt === "number" ? fmtNum(s.salesAmt) + "원" : s.salesAmt, color: theme.danger },
-      ].map((x, i) => (
-        <div key={i} style={{ background: theme.surfaceLight, borderRadius: 10, padding: compact ? "8px 6px" : "12px 8px", textAlign: "center" }}>
-          <div style={{ fontSize: 9, color: theme.textDim, fontWeight: 600, marginBottom: 3 }}>{x.label}</div>
-          <div style={{ fontSize: compact ? (x.big ? 14 : 11) : (x.big ? 20 : 14), fontWeight: 800, color: x.color }}>{x.value}</div>
-        </div>
-      ))}
-    </div>
-  );
+  // 캠페인별 비용 내림차순 정렬
+  const activeCamps = campaigns
+    .filter(c => { const cs = campaignStats[c.nccCampaignId]; return cs && cs.salesAmt > 0; })
+    .sort((a, b) => (campaignStats[b.nccCampaignId]?.salesAmt || 0) - (campaignStats[a.nccCampaignId]?.salesAmt || 0));
 
-  const activeCamps = campaigns.filter(c => { const cs = campaignStats[c.nccCampaignId]; return cs && cs.salesAmt > 0; });
+  // 총 비용에서 각 캠페인 비율
+  const totalSales = stats ? stats.salesAmt : 0;
 
   return (
     <div style={{ minHeight: "100vh", padding: "0 20px 80px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 12px", position: "sticky", top: 0, zIndex: 10, background: theme.bg + "ee", backdropFilter: "blur(12px)" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 14px", position: "sticky", top: 0, zIndex: 10, background: theme.bg + "ee", backdropFilter: "blur(12px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg," + theme.accent + "," + theme.accentDark + ")", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px " + theme.accentGlow }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: `linear-gradient(135deg, ${theme.accent}, ${theme.accentDark})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 12px ${theme.accentGlow}` }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M16.27 3H7.73A4.73 4.73 0 0 0 3 7.73v8.54A4.73 4.73 0 0 0 7.73 21h8.54A4.73 4.73 0 0 0 21 16.27V7.73A4.73 4.73 0 0 0 16.27 3zm-2.1 12.27h-2.4l-2.6-3.6v3.6H6.97V8.73h2.4l2.6 3.56V8.73h2.2v6.54z"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: theme.text }}>광고비</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: theme.text, letterSpacing: -0.3 }}>광고비</div>
             <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 500 }}>{user.name}</div>
           </div>
         </div>
-        <button onClick={() => loadPeriod(activePeriod)} style={{ background: theme.surface, border: "1.5px solid " + theme.border, borderRadius: 10, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: theme.accent, boxShadow: theme.cardShadow }}>{I.refresh}</button>
+        <button onClick={() => loadPeriod(activePeriod, true)} disabled={refreshing} style={{
+          background: theme.surface, border: `1.5px solid ${theme.border}`, borderRadius: 12,
+          width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", color: theme.accent, boxShadow: theme.cardShadow,
+          transition: "transform 0.5s", transform: refreshing ? "rotate(360deg)" : "none",
+        }}>{I.refresh}</button>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: theme.surface, borderRadius: 12, padding: 4, border: "1px solid " + theme.border }}>
+      {/* Period Tabs */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: theme.surface, borderRadius: 14, padding: 4, border: `1.5px solid ${theme.border}` }}>
         {periods.map(p => (
           <button key={p.key} onClick={() => setActivePeriod(p.key)} style={{
             flex: 1, padding: "10px 0", borderRadius: 10, border: "none", fontSize: 13, fontWeight: 700,
-            cursor: "pointer", transition: "all 0.2s",
+            cursor: "pointer", transition: "all 0.25s",
             background: activePeriod === p.key ? theme.accent : "transparent",
             color: activePeriod === p.key ? "#fff" : theme.textDim,
-            boxShadow: activePeriod === p.key ? "0 2px 8px " + theme.accentGlow : "none",
+            boxShadow: activePeriod === p.key ? `0 2px 10px ${theme.accentGlow}` : "none",
           }}>{p.label}</button>
         ))}
       </div>
 
+      {/* Loading */}
       {loading && (
-        <Card style={{ padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-            {[1,2,3,4].map(j => <div key={j} style={{ height: 56, background: theme.surfaceLight, borderRadius: 10, animation: "pulse 1.5s ease-in-out infinite" }} />)}
+        <Card style={{ padding: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {[1,2,3,4].map(j => <div key={j} style={{ height: 60, background: theme.surfaceLight, borderRadius: 12, animation: "pulse 1.5s ease-in-out infinite" }} />)}
           </div>
           <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
         </Card>
       )}
 
+      {/* Error */}
       {error && !loading && (
-        <Card style={{ padding: 20, textAlign: "center" }}>
-          <div style={{ fontSize: 14, color: theme.danger, fontWeight: 600, marginBottom: 6 }}>조회 실패</div>
-          <div style={{ fontSize: 12, color: theme.textDim, marginBottom: 12, lineHeight: 1.5 }}>{error}</div>
+        <Card style={{ padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
+          <div style={{ fontSize: 15, color: theme.danger, fontWeight: 700, marginBottom: 6 }}>조회 실패</div>
+          <div style={{ fontSize: 12, color: theme.textDim, marginBottom: 16, lineHeight: 1.6 }}>{error}</div>
           <Button onClick={() => loadPeriod(activePeriod)} variant="secondary">다시 시도</Button>
         </Card>
       )}
 
+      {/* Stats */}
       {!loading && !error && stats && (
         <>
-          <Card style={{ marginBottom: 12, padding: 16 }}><StatGrid s={stats} /></Card>
+          {/* 총 비용 히어로 카드 */}
+          <Card style={{ marginBottom: 12, padding: "20px 18px", background: `linear-gradient(135deg, ${theme.surface}, ${theme.surfaceLight})` }}>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: theme.textDim, fontWeight: 600, marginBottom: 4 }}>
+                {periods.find(p => p.key === activePeriod)?.label} 총 비용
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: theme.danger, letterSpacing: -1 }}>
+                {fmtNum(stats.salesAmt)}<span style={{ fontSize: 16, fontWeight: 600, marginLeft: 2 }}>원</span>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+              {[
+                { label: "노출", value: fmtNum(stats.impCnt), color: theme.text },
+                { label: "클릭", value: fmtNum(stats.clkCnt), color: theme.accent },
+                { label: "CPC", value: fmtNum(stats.cpc) + "원", color: theme.text },
+                { label: "CTR", value: stats.ctr + "%", color: theme.blue },
+              ].map((x, i) => (
+                <div key={i} style={{ background: theme.surface, borderRadius: 10, padding: "10px 6px", textAlign: "center", border: `1px solid ${theme.border}` }}>
+                  <div style={{ fontSize: 9, color: theme.textDim, fontWeight: 600, marginBottom: 3 }}>{x.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: x.color }}>{x.value}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
+          {/* 일별 차트 */}
           {dailyData.length > 1 && (
             <Card style={{ marginBottom: 12, padding: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: theme.text, marginBottom: 4 }}>일별 비용</div>
-              <div style={{ fontSize: 11, color: theme.textDim, marginBottom: 8 }}>총 {fmtNum(dailyData.reduce((s,d) => s+d.salesAmt,0))}원</div>
-              <MiniChart data={dailyData.map(d => ({ value: d.salesAmt, label: d.label }))} color={theme.danger} height={50} />
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, color: theme.textDim, marginBottom: 4 }}>일별 클릭수</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>일별 비용</div>
+                  <div style={{ fontSize: 11, color: theme.textDim, marginTop: 2 }}>총 {fmtNum(dailyData.reduce((s,d) => s+d.salesAmt,0))}원</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 9, color: theme.textDim, fontWeight: 600 }}>일 평균</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: theme.danger }}>
+                    {fmtNum(Math.round(dailyData.reduce((s,d) => s+d.salesAmt,0) / dailyData.length))}원
+                  </div>
+                </div>
+              </div>
+              <MiniChart data={dailyData.map(d => ({ value: d.salesAmt, label: d.label }))} color={theme.danger} height={55} showTooltip />
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6 }}>일별 클릭수</div>
                 <MiniChart data={dailyData.map(d => ({ value: d.clkCnt, label: d.label }))} color={theme.accent} height={40} />
               </div>
             </Card>
           )}
 
+          {/* 캠페인별 상세 */}
           {activeCamps.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <button onClick={() => setExpanded(!expanded)} style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                background: theme.surface, border: "1px solid " + (expanded ? theme.accent + "33" : theme.border),
-                borderRadius: expanded ? "14px 14px 0 0" : 14, padding: "12px 16px",
-                cursor: "pointer", boxShadow: theme.cardShadow,
+                background: theme.surface,
+                border: `1.5px solid ${expanded ? theme.accent + "44" : theme.border}`,
+                borderRadius: expanded ? "16px 16px 0 0" : 16, padding: "14px 16px",
+                cursor: "pointer", boxShadow: expanded ? `0 4px 16px ${theme.accentGlow}` : theme.cardShadow,
+                transition: "all 0.25s",
               }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
-                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>캠페인별 상세</span>
+                <span style={{ fontSize: 12, color: theme.textDim, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                   {activeCamps.length}개
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ marginLeft: 4, verticalAlign: "middle", transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={theme.textDim} strokeWidth="2.5" style={{ transition: "transform 0.25s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}><polyline points="9 18 15 12 9 6" /></svg>
                 </span>
               </button>
               {expanded && (
-                <div style={{ background: theme.bg, border: "1px solid " + theme.accent + "22", borderTop: "none", borderRadius: "0 0 14px 14px", padding: 12 }}>
-                  {activeCamps.map(c => {
+                <div style={{ background: theme.bg, border: `1.5px solid ${theme.accent}22`, borderTop: "none", borderRadius: "0 0 16px 16px", padding: 14 }}>
+                  {activeCamps.map((c, idx) => {
                     const cs = campaignStats[c.nccCampaignId];
+                    const pct = totalSales > 0 ? ((cs.salesAmt / totalSales) * 100).toFixed(1) : "0";
                     return (
-                      <div key={c.nccCampaignId} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: theme.text, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ width: 4, height: 4, borderRadius: "50%", background: theme.accent, display: "inline-block" }} />
-                          {c.name}
+                      <div key={c.nccCampaignId} style={{ marginBottom: idx < activeCamps.length - 1 ? 12 : 0, animation: "fadeUp 0.25s ease" }}>
+                        {/* 캠페인 이름 + 비율 */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: theme.text, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: theme.accent, display: "inline-block", flexShrink: 0 }} />
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: theme.danger, marginLeft: 8, whiteSpace: "nowrap" }}>
+                            {fmtNum(cs.salesAmt)}원
+                            <span style={{ fontSize: 10, color: theme.textDim, fontWeight: 500, marginLeft: 3 }}>({pct}%)</span>
+                          </span>
                         </div>
-                        <StatGrid s={cs} compact />
+                        {/* 비율 바 */}
+                        <div style={{ height: 4, borderRadius: 2, background: theme.surfaceLight, marginBottom: 8, overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: 2, background: theme.accent, width: pct + "%", transition: "width 0.5s ease" }} />
+                        </div>
+                        {/* 미니 통계 */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+                          {[
+                            { label: "노출", value: fmtNum(cs.impCnt), color: theme.text },
+                            { label: "클릭", value: fmtNum(cs.clkCnt), color: theme.accent },
+                            { label: "CPC", value: fmtNum(cs.cpc) + "원", color: theme.text },
+                            { label: "CTR", value: cs.ctr + "%", color: theme.blue },
+                          ].map((x, i) => (
+                            <div key={i} style={{ background: theme.surface, borderRadius: 8, padding: "6px 4px", textAlign: "center", border: `1px solid ${theme.border}` }}>
+                              <div style={{ fontSize: 8, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>{x.label}</div>
+                              <div style={{ fontSize: 11, fontWeight: 800, color: x.color }}>{x.value}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
@@ -259,8 +335,21 @@ function CostPage({ user, apiSettings, showToast }) {
               )}
             </div>
           )}
+
+          {/* 비용 없을 때 */}
+          {stats.salesAmt === 0 && (
+            <Card style={{ padding: 36, textAlign: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>💰</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: theme.text, marginBottom: 4 }}>비용이 없습니다</div>
+              <div style={{ fontSize: 12, color: theme.textDim, lineHeight: 1.5 }}>
+                {activePeriod === "today" ? "오늘은 아직 광고 비용이 발생하지 않았습니다" : "해당 기간에 광고 비용이 없습니다"}
+              </div>
+            </Card>
+          )}
         </>
       )}
+
+      <style>{`@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }`}</style>
     </div>
   );
 }
