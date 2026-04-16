@@ -270,7 +270,7 @@ function CampaignToggle({ campaign, apiSettings, showToast, onToggle }) {
 
 // ─── Campaign Accordion ───
 function CampaignAccordion({ campaign, apiSettings, presets, showToast, isFirst, showAll, onPresetsChange, onRefresh }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [adgroups, setAdgroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -300,10 +300,10 @@ function CampaignAccordion({ campaign, apiSettings, presets, showToast, isFirst,
   };
 
   useEffect(() => {
-    if (isFirst && !loaded) {
-      fetchAdgroups().then(() => setOpen(true));
+    if (!loaded) {
+      fetchAdgroups();
     }
-  }, [isFirst]);
+  }, []);
 
   const activeAdgroups = adgroups.filter(a => (a.userStatus || a.status) === "ELIGIBLE");
   const displayAdgroups = showAll ? adgroups : activeAdgroups;
@@ -422,7 +422,13 @@ function CampaignsPage({ user, apiSettings, showToast }) {
 
   const activeCampaigns = campaigns.filter(c => !c.userLock);
   const inactiveCampaigns = campaigns.filter(c => c.userLock);
-  const displayCampaigns = showAll ? campaigns : activeCampaigns;
+  // 파워링크(WEB_SITE)를 마지막에 배치
+  const sortByType = (arr) => [...arr].sort((a, b) => {
+    const aPower = a.campaignTp === "WEB_SITE" ? 1 : 0;
+    const bPower = b.campaignTp === "WEB_SITE" ? 1 : 0;
+    return aPower - bPower;
+  });
+  const displayCampaigns = sortByType(showAll ? campaigns : activeCampaigns);
 
   // 오늘 총 비용
   const [todayCost, setTodayCost] = useState(null);
