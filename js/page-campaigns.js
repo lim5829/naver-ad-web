@@ -222,7 +222,58 @@ function AdgroupRow({ adgroup, apiSettings, presets, showToast }) {
       <div style={{ marginTop: 8 }}>
         <BudgetEditor adgroup={adgroup} apiSettings={apiSettings} showToast={showToast} />
       </div>
+      <ScheduleSection adgroup={adgroup} apiSettings={apiSettings} showToast={showToast} />
       <style>{`@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }`}</style>
+    </div>
+  );
+}
+
+// ─── Schedule Section (노출 시간대) ───
+function ScheduleSection({ adgroup, apiSettings, showToast }) {
+  const id = adgroup.nccAdgroupId || adgroup.id || '';
+  const [summary, setSummary] = useState(
+    typeof schFormatSummary === 'function' ? schFormatSummary(adgroup.schedules) : '전체 시간대'
+  );
+
+  const handleOpen = () => {
+    if (!window._adGroupsCache) window._adGroupsCache = [];
+    const normalized = Object.assign({}, adgroup, { id: id });
+    const idx = window._adGroupsCache.findIndex(function(g) { return (g.id || g.nccAdgroupId) === id; });
+    if (idx === -1) window._adGroupsCache.push(normalized);
+    else window._adGroupsCache[idx] = normalized;
+
+    // 저장 완료 콜백 — 모달이 닫힌 뒤 summary 갱신
+    window._schOnSaved = function(savedId, savedData) {
+      if (savedId === id && typeof schFormatSummary === 'function') {
+        setSummary(schFormatSummary(savedData));
+      }
+    };
+
+    if (typeof openScheduleModal === 'function') openScheduleModal(id);
+  };
+
+  if (typeof schFormatSummary !== 'function') return null;
+
+  return (
+    <div style={{
+      marginTop: 8, padding: "7px 10px",
+      background: theme.surfaceLight, borderRadius: 8,
+      border: `1px solid ${theme.border}`,
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <span style={{ fontSize: 12, color: theme.textDim, whiteSpace: "nowrap" }}>⏰ 노출 시간대</span>
+        <span style={{
+          fontSize: 12, color: theme.text, fontWeight: 600,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160,
+        }} title={summary}>{summary || "전체 시간대"}</span>
+      </div>
+      <button onClick={handleOpen} style={{
+        padding: "3px 10px", fontSize: 11, background: theme.surface,
+        border: `1px solid ${theme.border}`, borderRadius: 6,
+        cursor: "pointer", color: theme.text, whiteSpace: "nowrap", flexShrink: 0,
+        fontWeight: 600,
+      }}>편집</button>
     </div>
   );
 }

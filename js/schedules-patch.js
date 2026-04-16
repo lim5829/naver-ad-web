@@ -331,6 +331,10 @@ function saveSchedules() {
       summaryEl.title = s;
     }
     if (typeof showToast === 'function') showToast('노출 시간대가 저장되었습니다.', 'success');
+    if (typeof window._schOnSaved === 'function') {
+      window._schOnSaved(agId, Object.assign({}, _schEditData));
+      window._schOnSaved = null;
+    }
     closeScheduleModal();
   }).catch(function(err) {
     console.error('schedules save error:', err);
