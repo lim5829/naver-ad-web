@@ -222,77 +222,7 @@ function AdgroupRow({ adgroup, apiSettings, presets, showToast }) {
       <div style={{ marginTop: 8 }}>
         <BudgetEditor adgroup={adgroup} apiSettings={apiSettings} showToast={showToast} />
       </div>
-      <ScheduleSection adgroup={adgroup} apiSettings={apiSettings} showToast={showToast} />
       <style>{`@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }`}</style>
-    </div>
-  );
-}
-
-// ─── Schedule Section (노출 시간대) ───
-function ScheduleSection({ adgroup, apiSettings, showToast }) {
-  const id = adgroup.nccAdgroupId || adgroup.id || '';
-  const [summary, setSummary] = useState('로딩 중...');
-  const [loadedSchedules, setLoadedSchedules] = useState(null);
-  const [fetching, setFetching] = useState(false);
-
-  // 마운트 시 상세 API 조회 → 정확한 schedules 반영
-  useEffect(() => {
-    if (!id) return;
-    setFetching(true);
-    naverApiFetch({ path: `/api/adgroups/${id}`, ...apiSettings })
-      .then(detail => {
-        const sch = detail && detail.schedules ? detail.schedules : null;
-        setLoadedSchedules(sch);
-        if (typeof schFormatSummary === 'function') setSummary(schFormatSummary(sch));
-      })
-      .catch(() => {
-        // 상세 조회 실패 시 목록 데이터의 schedules 사용
-        const sch = adgroup.schedules || null;
-        setLoadedSchedules(sch);
-        if (typeof schFormatSummary === 'function') setSummary(schFormatSummary(sch));
-      })
-      .finally(() => setFetching(false));
-  }, [id]);
-
-  const handleOpen = () => {
-    if (!window._adGroupsCache) window._adGroupsCache = [];
-    const normalized = Object.assign({}, adgroup, { id: id, schedules: loadedSchedules });
-    const idx = window._adGroupsCache.findIndex(g => (g.id || g.nccAdgroupId) === id);
-    if (idx === -1) window._adGroupsCache.push(normalized);
-    else window._adGroupsCache[idx] = normalized;
-
-    window._schOnSaved = (savedId, savedData) => {
-      if (savedId === id && typeof schFormatSummary === 'function') {
-        setLoadedSchedules(savedData);
-        setSummary(schFormatSummary(savedData));
-      }
-    };
-
-    if (typeof openScheduleModal === 'function') openScheduleModal(id);
-  };
-
-  if (typeof schFormatSummary !== 'function') return null;
-
-  return (
-    <div style={{
-      marginTop: 8, padding: "7px 10px",
-      background: theme.surfaceLight, borderRadius: 8,
-      border: `1px solid ${theme.border}`,
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        <span style={{ fontSize: 12, color: theme.textDim, whiteSpace: "nowrap" }}>⏰ 노출 시간대</span>
-        <span style={{
-          fontSize: 12, color: fetching ? theme.textDim : theme.text, fontWeight: 600,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160,
-        }} title={summary}>{summary}</span>
-      </div>
-      <button onClick={handleOpen} disabled={fetching} style={{
-        padding: "3px 10px", fontSize: 11, background: theme.surface,
-        border: `1px solid ${theme.border}`, borderRadius: 6,
-        cursor: fetching ? "default" : "pointer", color: fetching ? theme.textDim : theme.text,
-        whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600,
-      }}>편집</button>
     </div>
   );
 }
