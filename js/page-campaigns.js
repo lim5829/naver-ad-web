@@ -231,20 +231,39 @@ function AdgroupRow({ adgroup, apiSettings, presets, showToast }) {
 // ─── Schedule Section (노출 시간대) ───
 function ScheduleSection({ adgroup, apiSettings, showToast }) {
   const id = adgroup.nccAdgroupId || adgroup.id || '';
-  const [summary, setSummary] = useState(
-    typeof schFormatSummary === 'function' ? schFormatSummary(adgroup.schedules) : '전체 시간대'
-  );
+  const [summary, setSummary] = useState('로딩 중...');
+  const [loadedSchedules, setLoadedSchedules] = useState(null);
+  const [fetching, setFetching] = useState(false);
+
+  // 마운트 시 상세 API 조회 → 정확한 schedules 반영
+  useEffect(() => {
+    if (!id) return;
+    setFetching(true);
+    naverApiFetch({ path: `/api/adgroups/${id}`, ...apiSettings })
+      .then(detail => {
+        const sch = detail && detail.schedules ? detail.schedules : null;
+        setLoadedSchedules(sch);
+        if (typeof schFormatSummary === 'function') setSummary(schFormatSummary(sch));
+      })
+      .catch(() => {
+        // 상세 조회 실패 시 목록 데이터의 schedules 사용
+        const sch = adgroup.schedules || null;
+        setLoadedSchedules(sch);
+        if (typeof schFormatSummary === 'function') setSummary(schFormatSummary(sch));
+      })
+      .finally(() => setFetching(false));
+  }, [id]);
 
   const handleOpen = () => {
     if (!window._adGroupsCache) window._adGroupsCache = [];
-    const normalized = Object.assign({}, adgroup, { id: id });
-    const idx = window._adGroupsCache.findIndex(function(g) { return (g.id || g.nccAdgroupId) === id; });
+    const normalized = Object.assign({}, adgroup, { id: id, schedules: loadedSchedules });
+    const idx = window._adGroupsCache.findIndex(g => (g.id || g.nccAdgroupId) === id);
     if (idx === -1) window._adGroupsCache.push(normalized);
     else window._adGroupsCache[idx] = normalized;
 
-    // 저장 완료 콜백 — 모달이 닫힌 뒤 summary 갱신
-    window._schOnSaved = function(savedId, savedData) {
+    window._schOnSaved = (savedId, savedData) => {
       if (savedId === id && typeof schFormatSummary === 'function') {
+        setLoadedSchedules(savedData);
         setSummary(schFormatSummary(savedData));
       }
     };
@@ -264,15 +283,15 @@ function ScheduleSection({ adgroup, apiSettings, showToast }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
         <span style={{ fontSize: 12, color: theme.textDim, whiteSpace: "nowrap" }}>⏰ 노출 시간대</span>
         <span style={{
-          fontSize: 12, color: theme.text, fontWeight: 600,
+          fontSize: 12, color: fetching ? theme.textDim : theme.text, fontWeight: 600,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160,
-        }} title={summary}>{summary || "전체 시간대"}</span>
+        }} title={summary}>{summary}</span>
       </div>
-      <button onClick={handleOpen} style={{
+      <button onClick={handleOpen} disabled={fetching} style={{
         padding: "3px 10px", fontSize: 11, background: theme.surface,
         border: `1px solid ${theme.border}`, borderRadius: 6,
-        cursor: "pointer", color: theme.text, whiteSpace: "nowrap", flexShrink: 0,
-        fontWeight: 600,
+        cursor: fetching ? "default" : "pointer", color: fetching ? theme.textDim : theme.text,
+        whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600,
       }}>편집</button>
     </div>
   );
