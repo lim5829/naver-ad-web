@@ -28,24 +28,23 @@ button { font-family: inherit; }
 <body>
 <div id="root"><div class="loader"></div></div>
 <!--
-📁 파일 구조 (로드 순서대로):
-
-1. theme.js            — 테마, 설정, 프록시 URL
-2. icons.js            — SVG 아이콘
-3. api.js              — API 호출 헬퍼
-4. ui.js               — 공통 UI 컴포넌트
-5. page-auth.js        — 로그인/회원가입
-6. page-settings.js    — API 설정
-7. page-campaigns.js   — 캠페인 관리
-8. api-schedules-patch.js — 노출 시간대 API 함수 (schedules PUT)
-9. schedules-patch.js  — 노출 시간대 표시/편집 UI
-10. page-cost.js       — 광고비 통계
-11. app.js             — 메인 App 라우팅
+파일 구조 (로드 순서대로):
+1. theme.js               - 테마, 설정, 프록시 URL
+2. icons.js               - SVG 아이콘
+3. api.js                 - API 호출 헬퍼
+4. ui.js                  - 공통 UI 컴포넌트
+5. page-auth.js           - 로그인/회원가입
+6. page-settings.js       - API 설정
+7. page-campaigns.js      - 캠페인 관리
+8. api-schedules-patch.js - 노출 시간대 API 함수
+9. schedules-patch.js     - 노출 시간대 표시/편집 UI
+10. page-cost.js          - 광고비 통계
+11. app.js                - 메인 App 라우팅
 -->
 <script>
-// Babel standalone의 외부 src JSX 로딩 문제를 우회:
-// 각 파일을 fetch → 합쳐서 한 번에 Babel 변환 후 실행
-const files = [
+// 파일별로 개별 Babel 변환 후 순서대로 실행
+// → 합치지 않으므로 비트 연산자 충돌 없음, 에러 발생 시 파일명 특정 가능
+var files = [
   'js/theme.js',
   'js/icons.js',
   'js/api.js',
@@ -56,26 +55,31 @@ const files = [
   'js/api-schedules-patch.js',
   'js/schedules-patch.js',
   'js/page-cost.js',
-  'js/app.js',
+  'js/app.js'
 ];
 
-(async () => {
+(async function() {
   try {
-    const sources = await Promise.all(
-      files.map(f => fetch(f + '?v=' + Date.now()).then(r => {
-        if (!r.ok) throw new Error(f + ' 로드 실패: ' + r.status);
-        return r.text();
-      }))
-    );
-    const combined = sources.join('\n\n');
-    const transformed = Babel.transform(combined, { presets: ['env', 'react'] }).code;
-    const script = document.createElement('script');
-    script.textContent = transformed;
-    document.body.appendChild(script);
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var res = await fetch(f + '?v=' + Date.now());
+      if (!res.ok) throw new Error(f + ' 로드 실패: ' + res.status);
+      var src = await res.text();
+      var transformed;
+      try {
+        transformed = Babel.transform(src, { presets: ['env', 'react'], filename: f }).code;
+      } catch (babelErr) {
+        throw new Error(f + ' 변환 실패:\n' + babelErr.message);
+      }
+      var script = document.createElement('script');
+      script.textContent = transformed;
+      document.body.appendChild(script);
+    }
   } catch (e) {
     document.getElementById('root').innerHTML =
       '<div style="padding:40px;text-align:center;color:#E8384F;font-size:14px;font-weight:600">' +
-      '앱 로드 실패<br><br><span style="color:#8892A6;font-size:12px">' + e.message + '</span></div>';
+      '앱 로드 실패<br><br><span style="color:#8892A6;font-size:12px;white-space:pre-wrap;display:block;margin-top:8px;text-align:left;">' +
+      e.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span></div>';
     console.error('App load error:', e);
   }
 })();
