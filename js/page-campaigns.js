@@ -429,7 +429,6 @@ function CampaignsPage({ user, apiSettings, showToast }) {
 
   // 오늘 총 비용
   const [todayCost, setTodayCost] = useState(null);
-  const [costFetchedAt, setCostFetchedAt] = useState(null);
   useEffect(() => {
     if (campaigns.length === 0) return;
     const ids = campaigns.map(c => c.nccCampaignId).join(",");
@@ -446,8 +445,6 @@ function CampaignsPage({ user, apiSettings, showToast }) {
         total.salesAmt += Number(item.salesAmt) || 0;
       });
       setTodayCost(total);
-      const now = new Date();
-      setCostFetchedAt(now.getHours() + ":" + String(now.getMinutes()).padStart(2,"0") + " 기준");
     }).catch(() => {});
   }, [campaigns, apiSettings]);
 
@@ -627,10 +624,7 @@ function CampaignsPage({ user, apiSettings, showToast }) {
         <Card style={{ padding: "12px 16px", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 600 }}>오늘 총 비용</div>
-                {costFetchedAt && <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 500 }}>{costFetchedAt}</div>}
-              </div>
+              <div style={{ fontSize: 10, color: theme.textDim, fontWeight: 600, marginBottom: 2 }}>오늘 총 비용</div>
               <div style={{ fontSize: 20, fontWeight: 800, color: theme.danger }}>{fmtNum(todayCost.salesAmt)}원</div>
             </div>
             <div style={{ display: "flex", gap: 16 }}>
