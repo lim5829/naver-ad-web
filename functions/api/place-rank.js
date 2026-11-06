@@ -80,6 +80,8 @@ function toPlace(value, type, ad) {
     saves: toNumber(value.saveCount),
     score: toNumber(value.visitorReviewScore),
     image: value.imageUrl || null,
+    x: value.x ?? null,
+    y: value.y ?? null,
     ad,
     type,
   };
@@ -257,8 +259,8 @@ async function fetchLiveAds(q, x, y, device) {
 export async function onRequestGet({ request }) {
   const params = new URL(request.url).searchParams;
   const q = (params.get("q") || "").trim().slice(0, 60);
-  const x = (params.get("x") || "128.66").slice(0, 20);
-  const y = (params.get("y") || "38.05").slice(0, 20);
+  const x = (params.get("x") || "128.669").slice(0, 20);
+  const y = (params.get("y") || "38.061").slice(0, 20);
   const device = params.get("device") === "pc" ? "pc" : "mobile";
   if (!q) return json({ error: "키워드를 입력해 주세요." }, 400);
   if (!/^-?\d+(\.\d+)?$/.test(x) || !/^-?\d+(\.\d+)?$/.test(y)) {

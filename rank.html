@@ -68,7 +68,7 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
       </label>
       <label>검색 위치
         <select id="loc">
-          <option value="128.66,38.05">양양</option>
+          <option value="sonyang">양양 손양면</option>
           <option value="126.978,37.566">서울</option>
           <option value="127.728,37.881">춘천</option>
           <option value="128.876,37.752">강릉</option>
@@ -90,6 +90,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<
 const num = (n) => n === null || n === undefined ? null : n.toLocaleString('ko-KR');
 const norm = (s) => String(s || '').replace(/\s+/g, '').toLowerCase();
 let last = null;
+const SONYANG = ['128.669', '38.061']; // 내 업체 좌표를 찾기 전 쓰는 손양면 대략값 (양양공항 부근)
 
 function row(p, label, mine) {
   const nums = [
@@ -143,7 +144,12 @@ function renderRecent() {
 }
 
 async function search(q) {
-  const [x, y] = $('loc').value.split(',');
+  const useMine = $('loc').value === 'sonyang';
+  const saved = useMine ? store.get('mineXY', null) : null;
+  const mineKey = norm($('mine').value);
+  const [x, y] = useMine
+    ? (saved && saved.name === mineKey ? [saved.x, saved.y] : SONYANG)
+    : $('loc').value.split(',');
   const device = $('device').value;
   $('go').disabled = true;
   last = null;
@@ -156,6 +162,14 @@ async function search(q) {
       return;
     }
     last = data;
+    if (useMine && mineKey) {
+      // 손양면에 있는 내 업체의 네이버 좌표를 찾으면 그 위치로 다시 조회한다
+      const me = [...data.organic, ...data.ads].find((p) => norm(p.name).includes(mineKey) && p.x && p.y);
+      if (me && (String(me.x) !== String(x) || String(me.y) !== String(y))) {
+        store.set('mineXY', { name: mineKey, x: String(me.x), y: String(me.y) });
+        return search(q);
+      }
+    }
     store.set('recent', [q, ...store.get('recent', []).filter((k) => k !== q)].slice(0, 8));
     renderRecent();
     render();
@@ -167,7 +181,8 @@ async function search(q) {
 }
 
 $('mine').value = store.get('mine', '달파도');
-$('loc').value = store.get('loc', $('loc').value);
+$('loc').value = store.get('loc', 'sonyang');
+if (!$('loc').value) $('loc').value = 'sonyang';
 $('device').value = store.get('device', 'mobile');
 renderRecent();
 $('form').onsubmit = (e) => { e.preventDefault(); const q = $('q').value.trim(); if (q) search(q); };
