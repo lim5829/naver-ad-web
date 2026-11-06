@@ -131,7 +131,8 @@ function render() {
       ${ads.length ? `<label><input type="checkbox" id="showAds" ${showAds ? 'checked' : ''} />광고 ${ads.length}개 보기</label>` : ''}
     </div>
     ${showAds && ads.length ? `<ol style="margin-bottom:6px">${ads.map((p) => row(p, '<span class="ad-tag">광고</span>', isMine(p))).join('')}</ol>` : ''}
-    <ol>${organic.map((p, i) => row(p, `<span class="rank">${i + 1}</span>`, isMine(p))).join('')}</ol>`;
+    <ol>${organic.map((p, i) => row(p, `<span class="rank">${i + 1}</span>`, isMine(p))).join('')}</ol>
+    <details><summary>조회 정보</summary><pre>${esc(`기기: ${source} · 목록: ${last.kind} · 좌표: ${last.x}, ${last.y}\n네이버 적용 조건: ${last.appliedArgs || '확인 불가'}`)}</pre></details>`;
   const box = $('showAds');
   if (box) box.onchange = () => { store.set('showAds', box.checked); render(); };
 }

@@ -13,10 +13,14 @@ const USER_AGENTS = {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
 };
 const HOSTS = { pc: "https://pcmap.place.naver.com", mobile: "https://m.place.naver.com" };
-const SOURCES = {
-  mobile: [["mobile", "place"], ["mobile", "restaurant"], ["pc", "place"], ["pc", "restaurant"]],
-  pc: [["pc", "place"], ["pc", "restaurant"]],
-};
+// 네이버지도는 카페·음식점을 restaurant 목록으로, 나머지를 place 목록으로 보여준다.
+const FOOD_KEYWORD = /카페|커피|브런치|맛집|식당|음식|베이커리|빵집|디저트|술집|횟집|고기|국밥|분식|떡볶이/;
+
+function sourcesFor(device, q) {
+  const kinds = FOOD_KEYWORD.test(q) ? ["restaurant", "place"] : ["place", "restaurant"];
+  const devices = device === "mobile" ? ["mobile", "pc"] : ["pc"];
+  return devices.flatMap((d) => kinds.map((k) => [d, k]));
+}
 
 const json = (body, status = 200, extra = {}) =>
   new Response(JSON.stringify(body), {
@@ -113,6 +117,12 @@ function findAdInfo(root) {
   return { hasAdList, adTotal };
 }
 
+/** 네이버가 이 목록을 만들 때 실제로 적용한 입력값 (ROOT_QUERY 키의 인자) */
+function findAppliedArgs(root) {
+  const key = Object.keys(root).find((k) => /list\(|^places\(/i.test(k) && !/^ad/i.test(k));
+  return key ? key.slice(key.indexOf("(") + 1, -1).slice(0, 600) : null;
+}
+
 function findTotal(root) {
   let best = null;
   for (const [key, value] of Object.entries(root)) {
@@ -157,7 +167,7 @@ export function parseState(state) {
     }
   }
 
-  return { organic, ads, total: findTotal(root), usedFallback, ...findAdInfo(root) };
+  return { organic, ads, total: findTotal(root), usedFallback, appliedArgs: findAppliedArgs(root), ...findAdInfo(root) };
 }
 
 function debugInfo(state, extra) {
@@ -177,8 +187,13 @@ async function fetchList(device, kind, q, x, y) {
   url.searchParams.set("y", y);
   url.searchParams.set("clientX", x);
   url.searchParams.set("clientY", y);
+  const [cx, cy] = [Number(x), Number(y)];
+  url.searchParams.set("bounds", `${cx - 0.04};${cy - 0.03};${cx + 0.04};${cy + 0.03}`);
   url.searchParams.set("display", "70");
+  url.searchParams.set("ts", String(Date.now()));
+  url.searchParams.set("additionalHeight", "76");
   url.searchParams.set("locale", "ko");
+  url.searchParams.set("mapUrl", `https://map.naver.com/p/search/${encodeURIComponent(q)}`);
 
   const res = await fetch(url.toString(), {
     headers: {
@@ -210,7 +225,7 @@ export async function onRequestGet({ request, waitUntil }) {
   if (cached) return cached;
 
   const attempts = [];
-  for (const [source, kind] of SOURCES[device]) {
+  for (const [source, kind] of sourcesFor(device, q)) {
     let attempt;
     try {
       attempt = await fetchList(source, kind, q, x, y);
@@ -225,7 +240,7 @@ export async function onRequestGet({ request, waitUntil }) {
     );
     if (parsed?.organic.length || parsed?.ads.length) {
       const res = json(
-        { query: q, x, y, device, source, checkedAt: new Date().toISOString(), ...parsed },
+        { query: q, x, y, device, source, kind, checkedAt: new Date().toISOString(), ...parsed },
         200,
         { "Cache-Control": `public, s-maxage=${CACHE_SECONDS}` }
       );
