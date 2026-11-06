@@ -1,14 +1,22 @@
 /**
  * 네이버지도 키워드별 플레이스 순위 조회 (Cloudflare Pages Function)
- * GET /api/place-rank?q=양양카페&x=128.66&y=38.05
+ * GET /api/place-rank?q=양양카페&x=128.66&y=38.05&device=mobile
  *
  * 네이버 공식 API가 아니라 지도 목록 페이지(pcmap)의 초기 데이터를 읽는다.
  * 네이버가 구조를 바꾸면 깨질 수 있으므로, 실패하면 원인 파악용 debug 정보를 함께 돌려준다.
  */
 
-const CACHE_SECONDS = 300;
-const BROWSER_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const CACHE_SECONDS = 60; // 광고는 조회마다 돌아가므로 짧게 둔다
+const USER_AGENTS = {
+  pc: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  mobile:
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+};
+const HOSTS = { pc: "https://pcmap.place.naver.com", mobile: "https://m.place.naver.com" };
+const SOURCES = {
+  mobile: [["mobile", "place"], ["mobile", "restaurant"], ["pc", "place"], ["pc", "restaurant"]],
+  pc: [["pc", "place"], ["pc", "restaurant"]],
+};
 
 const json = (body, status = 200, extra = {}) =>
   new Response(JSON.stringify(body), {
@@ -93,6 +101,18 @@ function findLists(node, state, path, found, depth = 0) {
   }
 }
 
+/** 광고 목록이 응답에 들어 있었는지와, 네이버가 밝힌 광고 총수 */
+function findAdInfo(root) {
+  let hasAdList = false;
+  let adTotal = null;
+  for (const [key, value] of Object.entries(root)) {
+    if (!/^ad/i.test(key)) continue;
+    hasAdList = true;
+    if (typeof value?.total === "number") adTotal = Math.max(adTotal ?? 0, value.total);
+  }
+  return { hasAdList, adTotal };
+}
+
 function findTotal(root) {
   let best = null;
   for (const [key, value] of Object.entries(root)) {
@@ -137,7 +157,7 @@ export function parseState(state) {
     }
   }
 
-  return { organic, ads, total: findTotal(root), usedFallback };
+  return { organic, ads, total: findTotal(root), usedFallback, ...findAdInfo(root) };
 }
 
 function debugInfo(state, extra) {
@@ -150,8 +170,8 @@ function debugInfo(state, extra) {
   return { ...extra, rootKeys: [...new Set(rootKeys)], types: counts };
 }
 
-async function fetchList(kind, q, x, y) {
-  const url = new URL(`https://pcmap.place.naver.com/${kind}/list`);
+async function fetchList(device, kind, q, x, y) {
+  const url = new URL(`${HOSTS[device]}/${kind}/list`);
   url.searchParams.set("query", q);
   url.searchParams.set("x", x);
   url.searchParams.set("y", y);
@@ -162,7 +182,7 @@ async function fetchList(kind, q, x, y) {
 
   const res = await fetch(url.toString(), {
     headers: {
-      "User-Agent": BROWSER_UA,
+      "User-Agent": USER_AGENTS[device],
       "Accept-Language": "ko-KR,ko;q=0.9",
       Accept: "text/html,application/xhtml+xml",
       Referer: "https://map.naver.com/",
@@ -176,6 +196,7 @@ export async function onRequestGet({ request, waitUntil }) {
   const q = (params.get("q") || "").trim().slice(0, 60);
   const x = (params.get("x") || "128.66").slice(0, 20);
   const y = (params.get("y") || "38.05").slice(0, 20);
+  const device = params.get("device") === "pc" ? "pc" : "mobile";
   if (!q) return json({ error: "키워드를 입력해 주세요." }, 400);
   if (!/^-?\d+(\.\d+)?$/.test(x) || !/^-?\d+(\.\d+)?$/.test(y)) {
     return json({ error: "위치 값이 올바르지 않습니다." }, 400);
@@ -183,28 +204,28 @@ export async function onRequestGet({ request, waitUntil }) {
 
   const cache = caches.default;
   const cacheKey = new Request(
-    `https://place-rank.cache/${encodeURIComponent(q.replace(/\s+/g, " "))}?x=${x}&y=${y}`
+    `https://place-rank.cache/${encodeURIComponent(q.replace(/\s+/g, " "))}?x=${x}&y=${y}&device=${device}`
   );
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
   const attempts = [];
-  for (const kind of ["place", "restaurant"]) {
+  for (const [source, kind] of SOURCES[device]) {
     let attempt;
     try {
-      attempt = await fetchList(kind, q, x, y);
+      attempt = await fetchList(source, kind, q, x, y);
     } catch (e) {
-      attempts.push({ kind, error: String(e.message || e) });
+      attempts.push({ source, kind, error: String(e.message || e) });
       continue;
     }
     const state = attempt.html ? extractApolloState(attempt.html) : null;
     const parsed = state ? parseState(state) : null;
     attempts.push(
-      debugInfo(state, { kind, status: attempt.status, htmlLength: attempt.html.length, hasState: !!state })
+      debugInfo(state, { source, kind, status: attempt.status, htmlLength: attempt.html.length, hasState: !!state })
     );
     if (parsed?.organic.length || parsed?.ads.length) {
       const res = json(
-        { query: q, x, y, checkedAt: new Date().toISOString(), ...parsed },
+        { query: q, x, y, device, source, checkedAt: new Date().toISOString(), ...parsed },
         200,
         { "Cache-Control": `public, s-maxage=${CACHE_SECONDS}` }
       );
