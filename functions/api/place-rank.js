@@ -212,6 +212,7 @@ function base64Utf8(text) {
 /** 네이버지도와 같은 요청으로 지금 이 위치·키워드의 광고 목록을 받는다. 광고 클릭/노출 URL은 호출하지 않는다. */
 async function fetchLiveAds(q, x, y, device) {
   const log = [];
+  let best = null; // 화면에는 첫 번째 결과를 쓰고, 나머지 조합은 원인 확인용으로 기록한다
   const deviceTypes = device === "mobile" ? ["mobile", "pcmap"] : ["pcmap"];
   for (const deviceType of deviceTypes) {
     for (const businessType of ["place", "restaurant"]) {
@@ -246,18 +247,16 @@ async function fetchLiveAds(q, x, y, device) {
         const data = res.ok ? await res.json() : null;
         const result = Array.isArray(data) ? data[0] : data;
         const items = result?.data?.adBusinesses?.items || [];
-        log.push({ deviceType, businessType, status: res.status, items: items.length, error: result?.errors?.[0]?.message });
-        if (items.length) {
-          const ads = items.filter(isBusiness).map((item) => toPlace(item, item.__typename || "", true));
-          return { ads, adTotal: result.data.adBusinesses.total ?? ads.length, deviceType, log };
-        }
-        if (res.status === 429 || res.status === 403) return { ads: null, log };
+        const ads = items.filter(isBusiness).map((item) => toPlace(item, item.__typename || "", true));
+        log.push({ deviceType, businessType, status: res.status, items: items.length, names: ads.map((a) => a.name), error: result?.errors?.[0]?.message });
+        if (ads.length && !best) best = { ads, adTotal: result.data.adBusinesses.total ?? ads.length, deviceType };
+        if (res.status === 429 || res.status === 403) return { ads: null, ...best, log };
       } catch (e) {
         log.push({ deviceType, businessType, error: String(e.message || e) });
       }
     }
   }
-  return { ads: null, log };
+  return { ads: null, ...best, log };
 }
 
 export async function onRequestGet({ request }) {
