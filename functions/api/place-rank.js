@@ -213,7 +213,7 @@ export async function onRequestGet({ request, waitUntil }) {
   const cacheKey = new Request(
     `https://place-rank.cache/${encodeURIComponent(q.replace(/\s+/g, " "))}?x=${x}&y=${y}&device=${device}`
   );
-  const cached = await cache.match(cacheKey);
+  const cached = params.get("fresh") === "1" ? null : await cache.match(cacheKey);
   if (cached) return cached;
 
   const attempts = [];
