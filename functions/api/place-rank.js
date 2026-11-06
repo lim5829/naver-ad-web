@@ -17,10 +17,12 @@ const USER_AGENTS = {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
 };
 const HOSTS = { pc: "https://pcmap.place.naver.com", mobile: "https://m.place.naver.com" };
-// place 목록이 네이버지도 실제 순서와 맞는 것을 사용자가 확인했다. restaurant는 place가 비었을 때만 쓴다.
-function sourcesFor(device) {
+// 카페 키워드는 place 목록이 실제 순서와 맞는 것을 사용자가 확인했다. 음식점 키워드는 restaurant 목록을 먼저 읽는다.
+const FOOD_KEYWORD = /맛집|식당|음식점|밥집|횟집|고깃집|국밥|막국수/;
+function sourcesFor(device, q) {
   const devices = device === "mobile" ? ["mobile", "pc"] : ["pc"];
-  return devices.flatMap((d) => [[d, "place"], [d, "restaurant"]]);
+  const kinds = FOOD_KEYWORD.test(q) ? ["restaurant", "place"] : ["place", "restaurant"];
+  return devices.flatMap((d) => kinds.map((kind) => [d, kind]));
 }
 
 const json = (body, status = 200, extra = {}) =>
@@ -282,7 +284,7 @@ export async function onRequestGet({ request }) {
   }
 
   const attempts = [];
-  for (const [source, kind] of sourcesFor(device)) {
+  for (const [source, kind] of sourcesFor(device, q)) {
     let attempt;
     try {
       attempt = await fetchList(source, kind, q, x, y);
