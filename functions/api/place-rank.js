@@ -6,7 +6,9 @@
  * 네이버가 구조를 바꾸면 깨질 수 있으므로, 실패하면 원인 파악용 debug 정보를 함께 돌려준다.
  */
 
-const CACHE_SECONDS = 60; // 광고는 조회마다 돌아가므로 짧게 둔다
+// 네이버지도 페이지가 뜬 뒤 실제로 호출하는 광고 목록 요청과 같은 쿼리 (2026-02 기록본)
+const AD_GRAPHQL_URL = "https://pcmap-api.place.naver.com/graphql";
+const AD_QUERY = "query getAdBusinessList($input: AdBusinessesInput, $isNmap: Boolean!) {\n  adBusinesses(input: $input) {\n    total\n    bucket\n    bucketTest\n    ... on RestaurantAdsResult {\n      items {\n        ...RestaurantAdItemFields\n        __typename\n      }\n      __typename\n    }\n    ... on HospitalAdsResult {\n      items {\n        ...HospitalAdItemFields\n        __typename\n      }\n      __typename\n    }\n    ... on PlaceAdsResult {\n      items {\n        ...PlaceAdItemFields\n        __typename\n      }\n      __typename\n    }\n    ... on AttractionAdsResult {\n      items {\n        ...AttractionAdItemFields\n        __typename\n      }\n      __typename\n    }\n    ... on AccommodationAdsResult {\n      items {\n        ...AccommodationAdItemFields\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment RestaurantAdItemFields on RestaurantAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  dbType\n  name\n  businessCategory\n  category\n  categoryCodeList\n  description\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  routeUrl\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  agencyId\n  businessHours\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    dayOff\n    dayOffDescription\n    __typename\n  }\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  hasMobilePhoneNumber\n  imageUrls\n  bookingReviewScore\n  bookingHubUrl\n  bookingHubButtonName\n  microReview\n  tags\n  priceCategory\n  broadcastInfo {\n    program\n    date\n    menu\n    __typename\n  }\n  michelinGuide {\n    year\n    star\n    comment\n    url\n    hasGrade\n    isBib\n    alternateText\n    __typename\n  }\n  broadcasts {\n    program\n    menu\n    episode\n    broadcast_date\n    __typename\n  }\n  tvcastId\n  naverBookingCategory\n  saveCount\n  uniqueBroadcasts\n  isDelivery\n  isCvsDelivery\n  isTableOrder\n  isPreOrder\n  isTakeOut\n  bookingDisplayName\n  bookingVisitId\n  bookingPickupId\n  popularMenuImages {\n    name\n    price\n    bookingCount\n    menuUrl\n    menuListUrl\n    imageUrl\n    isPopular\n    usePanoramaImage\n    __typename\n  }\n  visitorReviewCount\n  visitorReviewScore\n  newOpening\n  __typename\n}\n\nfragment HospitalAdItemFields on HospitalAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  dbType\n  name\n  businessCategory\n  category\n  categoryCodeList\n  description\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  routeUrl\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  agencyId\n  businessHours\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    dayOff\n    dayOffDescription\n    __typename\n  }\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  hasMobilePhoneNumber\n  medicalNo\n  visitorReviewCount\n  visitorReviewScore\n  talktalkUrl\n  fullAddress\n  apolloCacheId\n  hiraSpecialists {\n    name\n    count\n    __typename\n  }\n  __typename\n}\n\nfragment PlaceAdItemFields on PlaceAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  dbType\n  name\n  businessCategory\n  category\n  categoryCodeList\n  description\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  routeUrl\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  agencyId\n  businessHours\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    dayOff\n    dayOffDescription\n    __typename\n  }\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  hasMobilePhoneNumber\n  medicalNo\n  normalizedName\n  categoryCodeList\n  daysOff\n  poiInfo {\n    polyline {\n      shapeKey {\n        id\n        name\n        version\n        __typename\n      }\n      boundary {\n        minX\n        minY\n        maxX\n        maxY\n        __typename\n      }\n      details {\n        totalDistance\n        arrivalAddress\n        departureAddress\n        __typename\n      }\n      __typename\n    }\n    polygon {\n      shapeKey {\n        id\n        name\n        version\n        __typename\n      }\n      boundary {\n        minX\n        minY\n        maxX\n        maxY\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  subwayId\n  oilPrice @include(if: $isNmap) {\n    gasoline\n    diesel\n    lpg\n    __typename\n  }\n  isPublicGas\n  isDelivery\n  isTableOrder\n  isPreOrder\n  isTakeOut\n  isCvsDelivery\n  naverBookingCategory\n  bookingDisplayName\n  bookingVisitId\n  bookingPickupId\n  baemin {\n    businessHours {\n      deliveryTime {\n        start\n        end\n        __typename\n      }\n      closeDate {\n        start\n        end\n        __typename\n      }\n      temporaryCloseDate {\n        start\n        end\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  yogiyo {\n    businessHours {\n      actualDeliveryTime {\n        start\n        end\n        __typename\n      }\n      bizHours {\n        start\n        end\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  isPollingStation\n  visitorReviewCount\n  visitorReviewScore\n  naverBookingHubId\n  bookingHubUrl\n  bookingHubButtonName\n  newOpening\n  fullAddress\n  __typename\n}\n\nfragment AttractionAdItemFields on AttractionAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  dbType\n  name\n  businessCategory\n  category\n  categoryCodeList\n  description\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  routeUrl\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  agencyId\n  businessHours\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    dayOff\n    dayOffDescription\n    __typename\n  }\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  hasMobilePhoneNumber\n  imageUrls\n  cid\n  tags\n  visitorReviewCount\n  poiInfo {\n    polyline {\n      shapeKey {\n        id\n        __typename\n      }\n      __typename\n    }\n    polygon {\n      shapeKey {\n        id\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n  isDelivery\n  isTakeOut\n  isPreOrder\n  isTableOrder\n  newOpening\n  __typename\n}\n\nfragment AccommodationAdItemFields on AccommodationAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  apolloCacheId\n  dbType\n  name\n  businessCategory\n  category\n  description\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  routeUrl\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  agencyId\n  businessHours\n  newOpening\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  imageUrls\n  adImageUrls\n  microReview\n  placeReviewCount\n  placeReviewScore\n  roomImages {\n    id\n    name\n    imageUrl\n    minPrice\n    maxPrice\n    avgPrice\n    __typename\n  }\n  visitorImages {\n    id\n    reviewId\n    imageUrl\n    profileImageUrl\n    nickname\n    __typename\n  }\n  visitorReviews {\n    id\n    reviewId\n    review\n    __typename\n  }\n  matchRoomMinPrice\n  avgPrice\n  interiorPanorama\n  matchSidRoomIds\n  bookingUserCount\n  facility\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  categoryCode\n  categoryCodeList\n  bookingReviewScore\n  __typename\n}";
 const USER_AGENTS = {
   pc: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   mobile:
@@ -198,7 +200,61 @@ async function fetchList(device, kind, q, x, y) {
   return { kind, status: res.status, html: res.ok ? await res.text() : "" };
 }
 
-export async function onRequestGet({ request, waitUntil }) {
+function base64Utf8(text) {
+  const bytes = new TextEncoder().encode(text);
+  return btoa(String.fromCharCode(...bytes)).replace(/=+$/, "");
+}
+
+/** 네이버지도와 같은 요청으로 지금 이 위치·키워드의 광고 목록을 받는다. 광고 클릭/노출 URL은 호출하지 않는다. */
+async function fetchLiveAds(q, x, y, device) {
+  const log = [];
+  const deviceTypes = device === "mobile" ? ["mobile", "pcmap"] : ["pcmap"];
+  for (const deviceType of deviceTypes) {
+    for (const businessType of ["place", "restaurant"]) {
+      const center = encodeURIComponent(`${x};${y}`);
+      const localQueryString =
+        `pr=place_pcmap&version=2.0.0&st=poi&q_enc=utf-8&r_enc=utf-8&sm=all.basic.trade_query.deepmatch.use_quasar_cid.force_match_keyword.force_use_center_coord` +
+        `&r_format=json&r_psglen=title.140&so=rel.dsc&hl=none&ic=basic&rp=none&r_query_info=1&start=1&display=70` +
+        `&q=${encodeURIComponent(q)}&q_center_coordinate=${center}&r_query_select=1&eq_property=adult`;
+      const body = [{
+        operationName: "getAdBusinessList",
+        variables: {
+          input: { query: q, start: 1, localQueryString, deviceType, businessType, x, y },
+          isNmap: true,
+        },
+        query: AD_QUERY,
+      }];
+      try {
+        const res = await fetch(AD_GRAPHQL_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": USER_AGENTS.pc,
+            "Accept-Language": "ko",
+            Origin: "https://pcmap.place.naver.com",
+            Referer: `https://pcmap.place.naver.com/${businessType}/list?query=${encodeURIComponent(q)}&x=${x}&y=${y}`,
+            "x-wtm-graphql": base64Utf8(JSON.stringify({ arg: q, type: businessType, source: "place" })),
+          },
+          body: JSON.stringify(body),
+        });
+        const data = res.ok ? await res.json() : null;
+        const result = Array.isArray(data) ? data[0] : data;
+        const items = result?.data?.adBusinesses?.items || [];
+        log.push({ deviceType, businessType, status: res.status, items: items.length, error: result?.errors?.[0]?.message });
+        if (items.length) {
+          const ads = items.filter(isBusiness).map((item) => toPlace(item, item.__typename || "", true));
+          return { ads, adTotal: result.data.adBusinesses.total ?? ads.length, deviceType, log };
+        }
+        if (res.status === 429 || res.status === 403) return { ads: null, log };
+      } catch (e) {
+        log.push({ deviceType, businessType, error: String(e.message || e) });
+      }
+    }
+  }
+  return { ads: null, log };
+}
+
+export async function onRequestGet({ request }) {
   const params = new URL(request.url).searchParams;
   const q = (params.get("q") || "").trim().slice(0, 60);
   const x = (params.get("x") || "128.66").slice(0, 20);
@@ -208,13 +264,6 @@ export async function onRequestGet({ request, waitUntil }) {
   if (!/^-?\d+(\.\d+)?$/.test(x) || !/^-?\d+(\.\d+)?$/.test(y)) {
     return json({ error: "위치 값이 올바르지 않습니다." }, 400);
   }
-
-  const cache = caches.default;
-  const cacheKey = new Request(
-    `https://place-rank.cache/${encodeURIComponent(q.replace(/\s+/g, " "))}?x=${x}&y=${y}&device=${device}`
-  );
-  const cached = params.get("fresh") === "1" ? null : await cache.match(cacheKey);
-  if (cached) return cached;
 
   const attempts = [];
   for (const [source, kind] of sourcesFor(device)) {
@@ -231,13 +280,15 @@ export async function onRequestGet({ request, waitUntil }) {
       debugInfo(state, { source, kind, status: attempt.status, htmlLength: attempt.html.length, hasState: !!state })
     );
     if (parsed?.organic.length || parsed?.ads.length) {
-      const res = json(
-        { query: q, x, y, device, source, kind, checkedAt: new Date().toISOString(), ...parsed },
+      const live = await fetchLiveAds(q, x, y, device);
+      const adInfo = live.ads
+        ? { ads: live.ads, adTotal: live.adTotal, hasAdList: true, adSource: "live", adDeviceType: live.deviceType }
+        : { adSource: "initial" };
+      return json(
+        { query: q, x, y, device, source, kind, checkedAt: new Date().toISOString(), ...parsed, ...adInfo, adLog: live.log },
         200,
-        { "Cache-Control": `public, s-maxage=${CACHE_SECONDS}` }
+        { "Cache-Control": "no-store" }
       );
-      waitUntil(cache.put(cacheKey, res.clone()));
-      return res;
     }
     if (attempt.status === 429 || attempt.status === 403) break;
   }
