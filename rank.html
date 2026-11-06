@@ -79,7 +79,6 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
       </label>
       <label>검색 위치
         <select id="loc">
-          <option value="none">위치 없음</option>
           <option value="sonyang">양양 손양면</option>
           <option value="126.978,37.566">서울</option>
           <option value="127.728,37.881">춘천</option>
@@ -236,8 +235,8 @@ async function loadLog() {
 }
 
 $('mine').value = store.get('mine', '달파도');
-$('loc').value = store.get('locChoice', 'none');
-if (!$('loc').value) $('loc').value = 'none';
+$('loc').value = store.get('locChoice', 'sonyang');
+if (!$('loc').value) $('loc').value = 'sonyang';
 $('device').value = store.get('device', 'mobile');
 renderRecent();
 loadLog();
