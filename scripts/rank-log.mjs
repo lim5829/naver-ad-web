@@ -44,6 +44,7 @@ function toRow(at, q, data) {
 
 let coords = existsSync(coordsPath) ? JSON.parse(readFileSync(coordsPath, 'utf8')) : DEFAULT_COORDS;
 const lines = [];
+const runLog = []; // 광고 조회 실패 원인을 확인하기 위한 마지막 실행 정보
 for (const q of KEYWORDS) {
   const at = kstNow();
   try {
@@ -55,6 +56,7 @@ for (const q of KEYWORDS) {
       data = await query(q, coords);
     }
     lines.push(toRow(at, q, data).map(cell).join(','));
+    runLog.push({ q, colo: data.colo, adSource: data.adSource, adLog: data.adLog });
   } catch (e) {
     lines.push([at, q, '', '', '', '', '', '', '', coords.x, coords.y, cell(e.message || e)].join(','));
   }
@@ -64,4 +66,5 @@ for (const q of KEYWORDS) {
 if (!existsSync(csvPath)) writeFileSync(csvPath, `${HEADER}\n`);
 appendFileSync(csvPath, `${lines.join('\n')}\n`);
 writeFileSync(coordsPath, `${JSON.stringify(coords)}\n`);
+writeFileSync(join(dir, 'last-run.json'), `${JSON.stringify(runLog, null, 1)}\n`);
 console.log(lines.join('\n'));
