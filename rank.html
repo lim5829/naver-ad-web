@@ -133,7 +133,7 @@ function render() {
   const time = new Date(checkedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
   const shown = total ? `전체 ${num(total)}곳 중 ${organic.length}곳` : `${organic.length}곳`;
   const adCount = adTotal && adTotal > ads.length ? `네이버 표기 ${num(adTotal)}개 중 ${ads.length}개만 수신` : `광고 ${ads.length}개`;
-  const adKind = last.adSource === 'live' ? '실시간' : '실시간 조회 실패, 초기 목록';
+  const adKind = last.adSource === 'page' || last.adSource === 'live' ? '실시간' : '실시간 조회 실패, 초기 목록';
   const adLine = !mine ? '' : myAd >= 0
     ? `내 광고: ${myAd + 1}번째 (${adKind} · ${adCount})`
     : hasAdList ? `내 광고: 이번 조회에는 없음 (${adKind} · ${adCount})` : '내 광고: 이번 응답에 광고 목록이 없어 확인 불가';
@@ -141,15 +141,7 @@ function render() {
   const summary = !mine ? '' : idx >= 0
     ? `<div class="summary"><strong>${esc($('mine').value)} ${idx + 1}위</strong><div class="meta">“${esc(query)}” 광고 제외 · ${time} 기준${fallback}</div><div class="meta">${adLine}</div></div>`
     : `<div class="summary miss"><strong>${esc($('mine').value)} 순위 밖</strong><div class="meta">“${esc(query)}” 상위 ${organic.length}곳 안에 없습니다 · ${time} 기준${fallback}</div><div class="meta">${adLine}</div></div>`;
-  const adCombos = (last.adLog || []).map((l) => {
-    const pos = (l.names || []).findIndex((n) => mine && norm(n).includes(mine));
-    return `<div>${esc(l.client || l.deviceType)} / ${esc(l.businessType)}: ${l.items ?? '실패'}개${l.total !== undefined && l.total !== null ? ` · 표기 ${esc(l.total)}` : ''}${pos >= 0 ? ` · <b>내 광고 ${pos + 1}번째</b>` : ''}</div>`;
-  }).join('') + (last.initialAds ? (() => {
-    const pos = last.initialAds.findIndex((n) => mine && norm(n).includes(mine));
-    return `<div>초기 목록: ${last.initialAds.length}개${pos >= 0 ? ` · <b>내 광고 ${pos + 1}번째</b>` : ''}</div>`;
-  })() : '');
   $('out').innerHTML = `${summary}
-    ${adCombos ? `<div class="state" style="text-align:left;font-size:13px;padding:10px 14px;margin-top:8px">${adCombos}</div>` : ''}
     <div class="bar"><span>${shown}${usedFallback ? ' · 순서 정확도 낮음' : ''}</span>
       ${ads.length ? `<label><input type="checkbox" id="showAds" ${showAds ? 'checked' : ''} />광고 ${ads.length}개 보기</label>` : ''}
     </div>
@@ -216,7 +208,7 @@ function renderLog() {
   const picked = keywords.includes(store.get('logKeyword')) ? store.get('logKeyword') : keywords[0];
   const rows = logRows.filter((r) => r.keyword === picked).slice(-LOG_ROWS).reverse();
   const adCell = (r) => {
-    if (r.ad_source !== 'live') return '<span class="muted">확인 불가</span>';
+    if (r.ad_source !== 'page' && r.ad_source !== 'live') return '<span class="muted">확인 불가</span>';
     return r.ad_rank ? `${esc(r.ad_rank)}번째<span class="muted"> / ${esc(r.ad_count)}</span>` : `<span class="muted">없음 / ${esc(r.ad_count)}</span>`;
   };
   box.innerHTML = `<h2>시간별 기록</h2>
