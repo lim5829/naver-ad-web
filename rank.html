@@ -46,6 +46,17 @@ li.mine a { border:2px solid var(--green); background:var(--green-soft); }
 details { margin-top:8px; color:var(--sub); font-size:12px; }
 pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
 .note { margin-top:14px; font-size:12px; color:var(--sub); }
+.log { margin-top:24px; }
+.log h2 { font-size:16px; font-weight:700; }
+.log .chips { margin:8px 0; }
+.chip.on { background:var(--green); border-color:var(--green); color:#fff; }
+.log table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:14px; font-variant-numeric:tabular-nums; }
+.log th, .log td { padding:8px 10px; text-align:right; border-top:1px solid var(--line); }
+.log th { border-top:0; font-size:12px; font-weight:500; color:var(--sub); }
+.log th:first-child, .log td:first-child { text-align:left; }
+.log .fail { color:var(--red); text-align:left; overflow-wrap:anywhere; }
+.log .muted { color:var(--sub); }
+.log a { color:var(--green-dark); }
 </style>
 </head>
 <body>
@@ -79,6 +90,7 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
   <div class="chips" id="recent"></div>
   <div id="out"></div>
   <p class="note">네이버지도 목록의 첫 화면(보통 50곳 안팎) 기준입니다. 검색 위치와 시간에 따라 순위가 달라지고, 광고 순서는 조회할 때마다 네이버에서 새로 받습니다.</p>
+  <section class="log" id="log" aria-label="시간별 기록"></section>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -180,11 +192,53 @@ async function search(q) {
   }
 }
 
+const LOG_URL = 'https://raw.githubusercontent.com/lim5829/naver-ad-web/rank-log/rank-log.csv';
+const LOG_ROWS = 72;
+let logRows = [];
+
+function renderLog() {
+  const box = $('log');
+  const keywords = [...new Set(logRows.map((r) => r.keyword))];
+  if (!keywords.length) {
+    box.innerHTML = '<h2>시간별 기록</h2><div class="state">아직 기록이 없습니다.</div>';
+    return;
+  }
+  const picked = keywords.includes(store.get('logKeyword')) ? store.get('logKeyword') : keywords[0];
+  const rows = logRows.filter((r) => r.keyword === picked).slice(-LOG_ROWS).reverse();
+  const adCell = (r) => {
+    if (r.ad_source !== 'live') return '<span class="muted">확인 불가</span>';
+    return r.ad_rank ? `${esc(r.ad_rank)}번째<span class="muted"> / ${esc(r.ad_count)}</span>` : `<span class="muted">없음 / ${esc(r.ad_count)}</span>`;
+  };
+  box.innerHTML = `<h2>시간별 기록</h2>
+    <div class="chips">${keywords.map((k) => `<button type="button" class="chip ${k === picked ? 'on' : ''}" data-log="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+    <table><thead><tr><th>시각</th><th>일반 순위</th><th>내 광고 / 전체</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.checked_at.slice(5))}</td>${r.error
+      ? `<td class="fail" colspan="2">${esc(r.error)}</td>`
+      : `<td>${r.organic_rank ? `${esc(r.organic_rank)}위` : '<span class="muted">순위 밖</span>'}</td><td>${adCell(r)}</td>`}</tr>`).join('')}
+    </tbody></table>
+    <p class="note">최근 ${rows.length}건 · <a href="${LOG_URL}" target="_blank" rel="noopener">전체 기록 CSV</a></p>`;
+  box.querySelectorAll('[data-log]').forEach((b) => { b.onclick = () => { store.set('logKeyword', b.dataset.log); renderLog(); }; });
+}
+
+async function loadLog() {
+  try {
+    const res = await fetch(LOG_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const [head, ...lines] = (await res.text()).trim().split('\n');
+    const cols = head.split(',');
+    logRows = lines.map((line) => { const v = line.split(','); return Object.fromEntries(cols.map((c, i) => [c, v[i] ?? ''])); });
+    renderLog();
+  } catch {
+    $('log').innerHTML = '<h2>시간별 기록</h2><div class="state err">기록을 불러오지 못했습니다.</div>';
+  }
+}
+
 $('mine').value = store.get('mine', '달파도');
 $('loc').value = store.get('loc', 'sonyang');
 if (!$('loc').value) $('loc').value = 'sonyang';
 $('device').value = store.get('device', 'mobile');
 renderRecent();
+loadLog();
 $('form').onsubmit = (e) => { e.preventDefault(); const q = $('q').value.trim(); if (q) search(q); };
 $('mine').oninput = () => { store.set('mine', $('mine').value); render(); };
 $('loc').onchange = () => { store.set('loc', $('loc').value); const q = $('q').value.trim(); if (q) search(q); };
