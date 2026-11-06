@@ -143,8 +143,11 @@ function render() {
     : `<div class="summary miss"><strong>${esc($('mine').value)} 순위 밖</strong><div class="meta">“${esc(query)}” 상위 ${organic.length}곳 안에 없습니다 · ${time} 기준${fallback}</div><div class="meta">${adLine}</div></div>`;
   const adCombos = (last.adLog || []).map((l) => {
     const pos = (l.names || []).findIndex((n) => mine && norm(n).includes(mine));
-    return `<div>${esc(l.deviceType)} / ${esc(l.businessType)}: ${l.items ?? '실패'}개${pos >= 0 ? ` · <b>내 광고 ${pos + 1}번째</b>` : ''}</div>`;
-  }).join('');
+    return `<div>${esc(l.deviceType)} / ${esc(l.businessType)}${l.start > 1 ? ` (${l.start}번째부터)` : ''}: ${l.items ?? '실패'}개${l.total !== undefined && l.total !== null ? ` · 표기 ${esc(l.total)}` : ''}${pos >= 0 ? ` · <b>내 광고 ${pos + 1}번째</b>` : ''}</div>`;
+  }).join('') + (last.initialAds ? (() => {
+    const pos = last.initialAds.findIndex((n) => mine && norm(n).includes(mine));
+    return `<div>초기 목록: ${last.initialAds.length}개${pos >= 0 ? ` · <b>내 광고 ${pos + 1}번째</b>` : ''}</div>`;
+  })() : '');
   $('out').innerHTML = `${summary}
     ${adCombos ? `<div class="state" style="text-align:left;font-size:13px;padding:10px 14px;margin-top:8px">${adCombos}</div>` : ''}
     <div class="bar"><span>${shown}${usedFallback ? ' · 순서 정확도 낮음' : ''}</span>

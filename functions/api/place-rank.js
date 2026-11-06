@@ -214,19 +214,22 @@ async function fetchLiveAds(q, x, y, device) {
   const log = [];
   let best = null; // 화면에는 첫 번째 결과를 쓰고, 나머지 조합은 원인 확인용으로 기록한다
   const deviceTypes = device === "mobile" ? ["mobile", "pcmap"] : ["pcmap"];
-  for (const deviceType of deviceTypes) {
-    for (const businessType of ["place", "restaurant"]) {
+  // 앞 네 조합은 1페이지, 뒤 두 조합은 다음 광고 페이지가 있는지 확인용
+  const combos = deviceTypes.flatMap((deviceType) => ["place", "restaurant"].map((businessType) => ({ deviceType, businessType, start: 1 })));
+  combos.push({ deviceType: deviceTypes[0], businessType: "place", start: 6 }, { deviceType: deviceTypes[0], businessType: "restaurant", start: 6 });
+  {
+    for (const { deviceType, businessType, start } of combos) {
       const located = x && y;
       const center = located ? `&q_center_coordinate=${encodeURIComponent(`${x};${y}`)}` : "";
       const coordRule = located ? ".force_use_center_coord" : "";
       const localQueryString =
         `pr=place_pcmap&version=2.0.0&st=poi&q_enc=utf-8&r_enc=utf-8&sm=all.basic.trade_query.deepmatch.use_quasar_cid.force_match_keyword${coordRule}` +
-        `&r_format=json&r_psglen=title.140&so=rel.dsc&hl=none&ic=basic&rp=none&r_query_info=1&start=1&display=70` +
+        `&r_format=json&r_psglen=title.140&so=rel.dsc&hl=none&ic=basic&rp=none&r_query_info=1&start=${start}&display=70` +
         `&q=${encodeURIComponent(q)}${center}&r_query_select=1&eq_property=adult`;
       const body = [{
         operationName: "getAdBusinessList",
         variables: {
-          input: { query: q, start: 1, localQueryString, deviceType, businessType, ...(located ? { x, y } : {}) },
+          input: { query: q, start, localQueryString, deviceType, businessType, ...(located ? { x, y } : {}) },
           isNmap: true,
         },
         query: AD_QUERY,
@@ -248,11 +251,11 @@ async function fetchLiveAds(q, x, y, device) {
         const result = Array.isArray(data) ? data[0] : data;
         const items = result?.data?.adBusinesses?.items || [];
         const ads = items.filter(isBusiness).map((item) => toPlace(item, item.__typename || "", true));
-        log.push({ deviceType, businessType, status: res.status, items: items.length, names: ads.map((a) => a.name), error: result?.errors?.[0]?.message });
-        if (ads.length && !best) best = { ads, adTotal: result.data.adBusinesses.total ?? ads.length, deviceType };
+        log.push({ deviceType, businessType, start, total: result?.data?.adBusinesses?.total, status: res.status, items: items.length, names: ads.map((a) => a.name), error: result?.errors?.[0]?.message });
+        if (ads.length && !best && start === 1) best = { ads, adTotal: result.data.adBusinesses.total ?? ads.length, deviceType };
         if (res.status === 429 || res.status === 403) return { ads: null, ...best, log };
       } catch (e) {
-        log.push({ deviceType, businessType, error: String(e.message || e) });
+        log.push({ deviceType, businessType, start, error: String(e.message || e) });
       }
     }
   }
@@ -291,7 +294,7 @@ export async function onRequestGet({ request }) {
         ? { ads: live.ads, adTotal: live.adTotal, hasAdList: true, adSource: "live", adDeviceType: live.deviceType }
         : { adSource: "initial" };
       return json(
-        { query: q, x, y, device, source, kind, colo: request.cf?.colo ?? null, checkedAt: new Date().toISOString(), ...parsed, ...adInfo, adLog: live.log },
+        { query: q, x, y, device, source, kind, colo: request.cf?.colo ?? null, checkedAt: new Date().toISOString(), ...parsed, initialAds: parsed.ads.map((a) => a.name), ...adInfo, adLog: live.log },
         200,
         { "Cache-Control": "no-store" }
       );
