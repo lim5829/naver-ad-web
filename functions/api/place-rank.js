@@ -184,10 +184,12 @@ function debugInfo(state, extra) {
 async function fetchList(device, kind, q, x, y) {
   const url = new URL(`${HOSTS[device]}/${kind}/list`);
   url.searchParams.set("query", q);
-  url.searchParams.set("x", x);
-  url.searchParams.set("y", y);
-  url.searchParams.set("clientX", x);
-  url.searchParams.set("clientY", y);
+  if (x && y) {
+    url.searchParams.set("x", x);
+    url.searchParams.set("y", y);
+    url.searchParams.set("clientX", x);
+    url.searchParams.set("clientY", y);
+  }
   url.searchParams.set("display", "70");
   url.searchParams.set("locale", "ko");
 
@@ -213,15 +215,17 @@ async function fetchLiveAds(q, x, y, device) {
   const deviceTypes = device === "mobile" ? ["mobile", "pcmap"] : ["pcmap"];
   for (const deviceType of deviceTypes) {
     for (const businessType of ["place", "restaurant"]) {
-      const center = encodeURIComponent(`${x};${y}`);
+      const located = x && y;
+      const center = located ? `&q_center_coordinate=${encodeURIComponent(`${x};${y}`)}` : "";
+      const coordRule = located ? ".force_use_center_coord" : "";
       const localQueryString =
-        `pr=place_pcmap&version=2.0.0&st=poi&q_enc=utf-8&r_enc=utf-8&sm=all.basic.trade_query.deepmatch.use_quasar_cid.force_match_keyword.force_use_center_coord` +
+        `pr=place_pcmap&version=2.0.0&st=poi&q_enc=utf-8&r_enc=utf-8&sm=all.basic.trade_query.deepmatch.use_quasar_cid.force_match_keyword${coordRule}` +
         `&r_format=json&r_psglen=title.140&so=rel.dsc&hl=none&ic=basic&rp=none&r_query_info=1&start=1&display=70` +
-        `&q=${encodeURIComponent(q)}&q_center_coordinate=${center}&r_query_select=1&eq_property=adult`;
+        `&q=${encodeURIComponent(q)}${center}&r_query_select=1&eq_property=adult`;
       const body = [{
         operationName: "getAdBusinessList",
         variables: {
-          input: { query: q, start: 1, localQueryString, deviceType, businessType, x, y },
+          input: { query: q, start: 1, localQueryString, deviceType, businessType, ...(located ? { x, y } : {}) },
           isNmap: true,
         },
         query: AD_QUERY,
@@ -234,7 +238,7 @@ async function fetchLiveAds(q, x, y, device) {
             "User-Agent": USER_AGENTS.pc,
             "Accept-Language": "ko",
             Origin: "https://pcmap.place.naver.com",
-            Referer: `https://pcmap.place.naver.com/${businessType}/list?query=${encodeURIComponent(q)}&x=${x}&y=${y}`,
+            Referer: `https://pcmap.place.naver.com/${businessType}/list?query=${encodeURIComponent(q)}${located ? `&x=${x}&y=${y}` : ""}`,
             "x-wtm-graphql": base64Utf8(JSON.stringify({ arg: q, type: businessType, source: "place" })),
           },
           body: JSON.stringify(body),
@@ -259,11 +263,12 @@ async function fetchLiveAds(q, x, y, device) {
 export async function onRequestGet({ request }) {
   const params = new URL(request.url).searchParams;
   const q = (params.get("q") || "").trim().slice(0, 60);
-  const x = (params.get("x") || "128.669").slice(0, 20);
-  const y = (params.get("y") || "38.061").slice(0, 20);
+  const noLocation = params.get("loc") === "none";
+  const x = noLocation ? "" : (params.get("x") || "128.669").slice(0, 20);
+  const y = noLocation ? "" : (params.get("y") || "38.061").slice(0, 20);
   const device = params.get("device") === "pc" ? "pc" : "mobile";
   if (!q) return json({ error: "키워드를 입력해 주세요." }, 400);
-  if (!/^-?\d+(\.\d+)?$/.test(x) || !/^-?\d+(\.\d+)?$/.test(y)) {
+  if (!noLocation && (!/^-?\d+(\.\d+)?$/.test(x) || !/^-?\d+(\.\d+)?$/.test(y))) {
     return json({ error: "위치 값이 올바르지 않습니다." }, 400);
   }
 

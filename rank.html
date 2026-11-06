@@ -79,6 +79,7 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
       </label>
       <label>검색 위치
         <select id="loc">
+          <option value="none">위치 없음</option>
           <option value="sonyang">양양 손양면</option>
           <option value="126.978,37.566">서울</option>
           <option value="127.728,37.881">춘천</option>
@@ -146,7 +147,7 @@ function render() {
     </div>
     ${showAds && ads.length ? `<ol style="margin-bottom:6px">${ads.map((p) => row(p, '<span class="ad-tag">광고</span>', isMine(p))).join('')}</ol>` : ''}
     <ol>${organic.map((p, i) => row(p, `<span class="rank">${i + 1}</span>`, isMine(p))).join('')}</ol>
-    <details><summary>조회 정보</summary><pre>${esc(`기기: ${source} · 목록: ${last.kind} · 좌표: ${last.x}, ${last.y}\n네이버 적용 조건: ${last.appliedArgs || '확인 불가'}\n광고 조회: ${JSON.stringify(last.adLog || [])}`)}</pre></details>`;
+    <details><summary>조회 정보</summary><pre>${esc(`기기: ${source} · 목록: ${last.kind} · 좌표: ${last.x ? `${last.x}, ${last.y}` : '없음'}\n네이버 적용 조건: ${last.appliedArgs || '확인 불가'}\n광고 조회: ${JSON.stringify(last.adLog || [])}`)}</pre></details>`;
   const box = $('showAds');
   if (box) box.onchange = () => { store.set('showAds', box.checked); render(); };
 }
@@ -159,7 +160,8 @@ async function search(q) {
   const useMine = $('loc').value === 'sonyang';
   const saved = useMine ? store.get('mineXY', null) : null;
   const mineKey = norm($('mine').value);
-  const [x, y] = useMine
+  const noLocation = $('loc').value === 'none';
+  const [x, y] = noLocation ? [] : useMine
     ? (saved && saved.name === mineKey ? [saved.x, saved.y] : SONYANG)
     : $('loc').value.split(',');
   const device = $('device').value;
@@ -167,7 +169,7 @@ async function search(q) {
   last = null;
   $('out').innerHTML = '<div class="state">조회 중…</div>';
   try {
-    const res = await fetch(`/api/place-rank?${new URLSearchParams({ q, x, y, device })}`);
+    const res = await fetch(`/api/place-rank?${new URLSearchParams(noLocation ? { q, loc: 'none', device } : { q, x, y, device })}`);
     const data = await res.json().catch(() => ({ error: `서버 응답을 읽지 못했습니다 (${res.status}).` }));
     if (!res.ok || data.error) {
       $('out').innerHTML = `<div class="state err">${esc(data.error)}${data.debug ? `<details><summary>원인 정보</summary><pre>${esc(JSON.stringify(data.debug, null, 1))}</pre></details>` : ''}</div>`;
@@ -234,14 +236,14 @@ async function loadLog() {
 }
 
 $('mine').value = store.get('mine', '달파도');
-$('loc').value = store.get('loc', 'sonyang');
-if (!$('loc').value) $('loc').value = 'sonyang';
+$('loc').value = store.get('locChoice', 'none');
+if (!$('loc').value) $('loc').value = 'none';
 $('device').value = store.get('device', 'mobile');
 renderRecent();
 loadLog();
 $('form').onsubmit = (e) => { e.preventDefault(); const q = $('q').value.trim(); if (q) search(q); };
 $('mine').oninput = () => { store.set('mine', $('mine').value); render(); };
-$('loc').onchange = () => { store.set('loc', $('loc').value); const q = $('q').value.trim(); if (q) search(q); };
+$('loc').onchange = () => { store.set('locChoice', $('loc').value); const q = $('q').value.trim(); if (q) search(q); };
 $('device').onchange = () => { store.set('device', $('device').value); const q = $('q').value.trim(); if (q) search(q); };
 $('recent').onclick = (e) => { const k = e.target.dataset.k; if (k) { $('q').value = k; search(k); } };
 </script>
