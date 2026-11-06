@@ -1,0 +1,95 @@
+[
+ {
+  "q": "양양카페",
+  "colo": "MSP",
+  "adSource": "initial",
+  "adLog": [
+   {
+    "deviceType": "mobile",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "mobile",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   }
+  ]
+ },
+ {
+  "q": "양양브런치",
+  "colo": "MSP",
+  "adSource": "initial",
+  "adLog": [
+   {
+    "deviceType": "mobile",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "mobile",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   }
+  ]
+ },
+ {
+  "q": "양양맛집",
+  "colo": "MSP",
+  "adSource": "initial",
+  "adLog": [
+   {
+    "deviceType": "mobile",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "mobile",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "place",
+    "status": 200,
+    "items": 0
+   },
+   {
+    "deviceType": "pcmap",
+    "businessType": "restaurant",
+    "status": 200,
+    "items": 0
+   }
+  ]
+ }
+]
