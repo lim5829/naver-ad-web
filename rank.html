@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#03C75A" />
+<title>플레이스 순위</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard-dynamic-subset.css" />
+<style>
+:root { --green:#03C75A; --green-dark:#02A84B; --green-soft:#E6F9EF; --bg:#F5F6FA; --card:#FFFFFF; --line:#E2E6EF; --text:#1B2130; --sub:#6B7488; --amber:#9A6700; --amber-soft:#FFF4D6; --red:#C8322B; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif; font-size:15px; line-height:1.45; }
+main { max-width:640px; margin:0 auto; padding:16px 16px 48px; }
+h1 { font-size:20px; font-weight:700; margin-bottom:12px; }
+form { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; display:grid; gap:8px; }
+.row { display:flex; gap:8px; }
+input, select { width:100%; min-width:0; font:inherit; font-size:16px; color:var(--text); background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+input:focus, select:focus { outline:2px solid var(--green); outline-offset:-1px; border-color:var(--green); }
+label { flex:1; min-width:0; display:grid; gap:4px; font-size:12px; color:var(--sub); }
+button { font:inherit; font-weight:700; color:#fff; background:var(--green); border:0; border-radius:8px; padding:10px 16px; cursor:pointer; flex:none; }
+button:hover { background:var(--green-dark); }
+button:disabled { background:#A9B2C3; cursor:default; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.chip { font-size:13px; font-weight:500; color:var(--text); background:var(--card); border:1px solid var(--line); padding:5px 10px; border-radius:999px; }
+.chip:hover { background:var(--green-soft); }
+.summary { margin-top:14px; padding:12px 14px; border-radius:12px; background:var(--green-soft); }
+.summary.miss { background:var(--amber-soft); }
+.summary strong { display:block; font-size:18px; }
+.meta { font-size:13px; color:var(--sub); margin-top:2px; }
+.bar { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:16px 0 8px; font-size:13px; color:var(--sub); }
+.bar label { display:flex; flex:none; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+.bar input { width:auto; }
+ol { list-style:none; display:grid; gap:6px; }
+li a { display:flex; gap:12px; align-items:center; padding:10px 12px; background:var(--card); border:1px solid var(--line); border-radius:10px; color:inherit; text-decoration:none; }
+li a:hover { border-color:var(--green); }
+li.mine a { border:2px solid var(--green); background:var(--green-soft); }
+.rank { flex:none; width:32px; text-align:center; font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; }
+.ad-tag { flex:none; width:32px; text-align:center; font-size:12px; font-weight:700; color:var(--amber); }
+.body { min-width:0; flex:1; }
+.name { font-weight:700; overflow-wrap:anywhere; }
+.cat { font-weight:400; font-size:13px; color:var(--sub); margin-left:4px; }
+.line { font-size:13px; color:var(--sub); overflow-wrap:anywhere; }
+.nums { font-variant-numeric:tabular-nums; }
+.state { margin-top:16px; padding:16px; background:var(--card); border:1px solid var(--line); border-radius:12px; color:var(--sub); text-align:center; }
+.state.err { color:var(--red); text-align:left; }
+details { margin-top:8px; color:var(--sub); font-size:12px; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
+.note { margin-top:14px; font-size:12px; color:var(--sub); }
+.log { margin-top:24px; }
+.log h2 { font-size:16px; font-weight:700; }
+.log .chips { margin:8px 0; }
+.chip.on { background:var(--green); border-color:var(--green); color:#fff; }
+.log table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:14px; font-variant-numeric:tabular-nums; }
+.log th, .log td { padding:8px 10px; text-align:right; border-top:1px solid var(--line); }
+.log th { border-top:0; font-size:12px; font-weight:500; color:var(--sub); }
+.log th:first-child, .log td:first-child { text-align:left; }
+.log .fail { color:var(--red); text-align:left; overflow-wrap:anywhere; }
+.log .muted { color:var(--sub); }
+.log a { color:var(--green-dark); }
+</style>
+</head>
+<body>
+<main>
+  <h1>플레이스 순위</h1>
+  <form id="form">
+    <div class="row">
+      <input id="q" type="search" placeholder="키워드 (예: 양양카페)" aria-label="키워드" enterkeyhint="search" required />
+      <button id="go" type="submit">조회</button>
+    </div>
+    <div class="row">
+      <label>내 업체
+        <input id="mine" type="text" value="달파도" />
+      </label>
+      <label>기기
+        <select id="device">
+          <option value="mobile">모바일</option>
+          <option value="pc">PC</option>
+        </select>
+      </label>
+      <label>검색 위치
+        <select id="loc">
+          <option value="none">위치 없음</option>
+          <option value="sonyang">양양 손양면</option>
+          <option value="126.978,37.566">서울</option>
+          <option value="127.728,37.881">춘천</option>
+          <option value="128.876,37.752">강릉</option>
+        </select>
+      </label>
+    </div>
+  </form>
+  <div class="chips" id="recent"></div>
+  <div id="out"></div>
+  <p class="note">네이버지도 목록의 첫 화면(보통 50곳 안팎) 기준입니다. 검색 위치와 시간에 따라 순위가 달라지고, 광고 순서는 조회할 때마다 네이버에서 새로 받습니다.</p>
+  <section class="log" id="log" aria-label="시간별 기록"></section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('placeRank.' + k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('placeRank.' + k, JSON.stringify(v)); } catch {} },
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const num = (n) => n === null || n === undefined ? null : n.toLocaleString('ko-KR');
+const norm = (s) => String(s || '').replace(/\s+/g, '').toLowerCase();
+let last = null;
+const SONYANG = ['128.669', '38.061']; // 내 업체 좌표를 찾기 전 쓰는 손양면 대략값 (양양공항 부근)
+
+function row(p, label, mine) {
+  const nums = [
+    p.score ? `★${p.score}` : null,
+    p.visitorReviews !== null ? `방문자 ${num(p.visitorReviews)}` : null,
+    p.blogReviews !== null ? `블로그 ${num(p.blogReviews)}` : null,
+    p.saves !== null ? `저장 ${num(p.saves)}` : null,
+  ].filter(Boolean).join(' · ');
+  return `<li class="${mine ? 'mine' : ''}"><a href="https://map.naver.com/p/entry/place/${encodeURIComponent(p.id)}" target="_blank" rel="noopener">
+    ${label}
+    <div class="body">
+      <div class="name">${esc(p.name)}<span class="cat">${esc(p.category)}</span></div>
+      ${nums ? `<div class="line nums">${nums}</div>` : ''}
+      ${p.address ? `<div class="line">${esc(p.address)}</div>` : ''}
+    </div>
+  </a></li>`;
+}
+
+function render() {
+  if (!last) return;
+  const mine = norm($('mine').value);
+  const isMine = (p) => mine && norm(p.name).includes(mine);
+  const { organic, ads, total, usedFallback, query, checkedAt, device, source, hasAdList, adTotal } = last;
+  const myAd = ads.findIndex(isMine);
+  const idx = organic.findIndex(isMine);
+  const showAds = store.get('showAds', false);
+  const time = new Date(checkedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+  const shown = total ? `전체 ${num(total)}곳 중 ${organic.length}곳` : `${organic.length}곳`;
+  const adCount = adTotal && adTotal > ads.length ? `네이버 표기 ${num(adTotal)}개 중 ${ads.length}개만 수신` : `광고 ${ads.length}개`;
+  const adKind = last.adSource === 'page' || last.adSource === 'live' ? '실시간' : '실시간 조회 실패, 초기 목록';
+  const adLine = !mine ? '' : myAd >= 0
+    ? `내 광고: ${myAd + 1}번째 (${adKind} · ${adCount})`
+    : hasAdList ? `내 광고: 이번 조회에는 없음 (${adKind} · ${adCount})` : '내 광고: 이번 응답에 광고 목록이 없어 확인 불가';
+  const fallback = device !== source ? ' · 모바일 데이터를 못 읽어 PC 기준' : '';
+  const summary = !mine ? '' : idx >= 0
+    ? `<div class="summary"><strong>${esc($('mine').value)} ${idx + 1}위</strong><div class="meta">“${esc(query)}” 광고 제외 · ${time} 기준${fallback}</div><div class="meta">${adLine}</div></div>`
+    : `<div class="summary miss"><strong>${esc($('mine').value)} 순위 밖</strong><div class="meta">“${esc(query)}” 상위 ${organic.length}곳 안에 없습니다 · ${time} 기준${fallback}</div><div class="meta">${adLine}</div></div>`;
+  $('out').innerHTML = `${summary}
+    <div class="bar"><span>${shown}${usedFallback ? ' · 순서 정확도 낮음' : ''}</span>
+      ${ads.length ? `<label><input type="checkbox" id="showAds" ${showAds ? 'checked' : ''} />광고 ${ads.length}개 보기</label>` : ''}
+    </div>
+    ${showAds && ads.length ? `<ol style="margin-bottom:6px">${ads.map((p) => row(p, '<span class="ad-tag">광고</span>', isMine(p))).join('')}</ol>` : ''}
+    <ol>${organic.map((p, i) => row(p, `<span class="rank">${i + 1}</span>`, isMine(p))).join('')}</ol>
+    <details><summary>조회 정보</summary><pre>${esc(`기기: ${source} · 목록: ${last.kind} · 좌표: ${last.x ? `${last.x}, ${last.y}` : '없음'}\n네이버 적용 조건: ${last.appliedArgs || '확인 불가'}\n광고 조회: ${JSON.stringify(last.adLog || [])}`)}</pre></details>`;
+  const box = $('showAds');
+  if (box) box.onchange = () => { store.set('showAds', box.checked); render(); };
+}
+
+function renderRecent() {
+  $('recent').innerHTML = store.get('recent', []).map((k) => `<button type="button" class="chip" data-k="${esc(k)}">${esc(k)}</button>`).join('');
+}
+
+async function search(q) {
+  const useMine = $('loc').value === 'sonyang';
+  const saved = useMine ? store.get('mineXY', null) : null;
+  const mineKey = norm($('mine').value);
+  const noLocation = $('loc').value === 'none';
+  const [x, y] = noLocation ? [] : useMine
+    ? (saved && saved.name === mineKey ? [saved.x, saved.y] : SONYANG)
+    : $('loc').value.split(',');
+  const device = $('device').value;
+  $('go').disabled = true;
+  last = null;
+  $('out').innerHTML = '<div class="state">조회 중…</div>';
+  try {
+    const res = await fetch(`/api/place-rank?${new URLSearchParams(noLocation ? { q, loc: 'none', device } : { q, x, y, device })}`);
+    const data = await res.json().catch(() => ({ error: `서버 응답을 읽지 못했습니다 (${res.status}).` }));
+    if (!res.ok || data.error) {
+      $('out').innerHTML = `<div class="state err">${esc(data.error)}${data.debug ? `<details><summary>원인 정보</summary><pre>${esc(JSON.stringify(data.debug, null, 1))}</pre></details>` : ''}</div>`;
+      return;
+    }
+    last = data;
+    if (useMine && mineKey) {
+      // 손양면에 있는 내 업체의 네이버 좌표를 찾으면 그 위치로 다시 조회한다
+      const me = [...data.organic, ...data.ads].find((p) => norm(p.name).includes(mineKey) && p.x && p.y);
+      if (me && (String(me.x) !== String(x) || String(me.y) !== String(y))) {
+        store.set('mineXY', { name: mineKey, x: String(me.x), y: String(me.y) });
+        return search(q);
+      }
+    }
+    store.set('recent', [q, ...store.get('recent', []).filter((k) => k !== q)].slice(0, 8));
+    renderRecent();
+    render();
+  } catch (e) {
+    $('out').innerHTML = `<div class="state err">연결에 실패했습니다. 다시 시도해 주세요.</div>`;
+  } finally {
+    $('go').disabled = false;
+  }
+}
+
+const LOG_URL = 'https://raw.githubusercontent.com/lim5829/naver-ad-web/rank-log/rank-log.csv';
+const LOG_ROWS = 72;
+let logRows = [];
+
+function renderLog() {
+  const box = $('log');
+  const keywords = [...new Set(logRows.map((r) => r.keyword))];
+  if (!keywords.length) {
+    box.innerHTML = '<h2>시간별 기록</h2><div class="state">아직 기록이 없습니다.</div>';
+    return;
+  }
+  const picked = keywords.includes(store.get('logKeyword')) ? store.get('logKeyword') : keywords[0];
+  const rows = logRows.filter((r) => r.keyword === picked).slice(-LOG_ROWS).reverse();
+  const adCell = (r) => {
+    if (r.ad_source !== 'page' && r.ad_source !== 'live') return '<span class="muted">확인 불가</span>';
+    return r.ad_rank ? `${esc(r.ad_rank)}번째<span class="muted"> / ${esc(r.ad_count)}</span>` : `<span class="muted">없음 / ${esc(r.ad_count)}</span>`;
+  };
+  box.innerHTML = `<h2>시간별 기록</h2>
+    <div class="chips">${keywords.map((k) => `<button type="button" class="chip ${k === picked ? 'on' : ''}" data-log="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+    <table><thead><tr><th>시각</th><th>일반 순위</th><th>내 광고 / 전체</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.checked_at.slice(5))}</td>${r.error
+      ? `<td class="fail" colspan="2">${esc(r.error)}</td>`
+      : `<td>${r.organic_rank ? `${esc(r.organic_rank)}위` : '<span class="muted">순위 밖</span>'}</td><td>${adCell(r)}</td>`}</tr>`).join('')}
+    </tbody></table>
+    <p class="note">최근 ${rows.length}건 · <a href="${LOG_URL}" target="_blank" rel="noopener">전체 기록 CSV</a></p>`;
+  box.querySelectorAll('[data-log]').forEach((b) => { b.onclick = () => { store.set('logKeyword', b.dataset.log); renderLog(); }; });
+}
+
+async function loadLog() {
+  try {
+    const res = await fetch(LOG_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const [head, ...lines] = (await res.text()).trim().split('\n');
+    const cols = head.split(',');
+    logRows = lines.map((line) => { const v = line.split(','); return Object.fromEntries(cols.map((c, i) => [c, v[i] ?? ''])); });
+    renderLog();
+  } catch {
+    $('log').innerHTML = '<h2>시간별 기록</h2><div class="state err">기록을 불러오지 못했습니다.</div>';
+  }
+}
+
+$('mine').value = store.get('mine', '달파도');
+$('loc').value = store.get('locChoice', 'none');
+if (!$('loc').value) $('loc').value = 'none';
+$('device').value = store.get('device', 'mobile');
+renderRecent();
+loadLog();
+$('form').onsubmit = (e) => { e.preventDefault(); const q = $('q').value.trim(); if (q) search(q); };
+$('mine').oninput = () => { store.set('mine', $('mine').value); render(); };
+$('loc').onchange = () => { store.set('locChoice', $('loc').value); const q = $('q').value.trim(); if (q) search(q); };
+$('device').onchange = () => { store.set('device', $('device').value); const q = $('q').value.trim(); if (q) search(q); };
+$('recent').onclick = (e) => { const k = e.target.dataset.k; if (k) { $('q').value = k; search(k); } };
+</script>
+</body>
+</html>

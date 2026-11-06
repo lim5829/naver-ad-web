@@ -2,7 +2,7 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const API = process.env.RANK_API || 'https://place-rank.naver-ad-web.pages.dev/api/place-rank';
+const API = process.env.RANK_API || 'https://place-rank-kr.lim5829.workers.dev/';
 const KEYWORDS = ['양양카페', '양양맛집'];
 const MINE = '달파도';
 const DEFAULT_COORDS = { x: '128.669', y: '38.061' }; // 내 업체 좌표를 찾기 전 쓰는 손양면 대략값
