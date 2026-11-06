@@ -90,6 +90,7 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:6px; }
   <div class="chips" id="recent"></div>
   <div id="out"></div>
   <p class="note">네이버지도 목록의 첫 화면(보통 50곳 안팎) 기준입니다. 검색 위치와 시간에 따라 순위가 달라지고, 광고 순서는 조회할 때마다 네이버에서 새로 받습니다.</p>
+  <section class="log" id="phone" aria-label="폰 기록"></section>
   <section class="log" id="log" aria-label="시간별 기록"></section>
 </main>
 <script>
@@ -193,6 +194,39 @@ async function search(q) {
   }
 }
 
+const BOOKMARKLET = `javascript:(function(){var u=new URL(location.href),q=u.searchParams.get('query')||'',seen={},ads=[];[].slice.call(document.querySelectorAll('span,em,i,a,div,strong,button')).forEach(function(e){var t=(e.textContent||'').trim();if(e.children.length>1||t.indexOf('광고')!==0||t.length>4)return;var li=e.closest('li');if(!li)return;var w=document.createTreeWalker(li,4),x,n='';while(!n&&(x=w.nextNode())){var v=x.nodeValue.trim();if(v&&v.indexOf('광고')!==0)n=v}if(n&&!seen[n]){seen[n]=1;ads.push(n)}});location.href='https://place-rank.naver-ad-web.pages.dev/rank.html#phone='+encodeURIComponent(JSON.stringify({q:q,ads:ads.slice(0,40),at:Date.now()}))})();`;
+
+function receivePhoneRecord() {
+  const m = location.hash.match(/^#phone=(.*)$/);
+  if (!m) return;
+  try {
+    const rec = JSON.parse(decodeURIComponent(m[1]));
+    if (rec && Array.isArray(rec.ads)) store.set('phoneLog', [...store.get('phoneLog', []), rec].slice(-200));
+  } catch {}
+  history.replaceState(null, '', location.pathname);
+}
+
+function renderPhone() {
+  const mine = norm($('mine').value);
+  const rows = store.get('phoneLog', []).slice().reverse();
+  const when = (t) => new Date(t).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  $('phone').innerHTML = `<h2>폰 광고 기록 (양양 화면)</h2>
+    ${rows.length ? `<table><thead><tr><th>시각</th><th>키워드</th><th>내 광고 / 전체</th></tr></thead><tbody>${rows.slice(0, 30).map((r) => {
+      const pos = r.ads.findIndex((n) => mine && norm(n).includes(mine));
+      return `<tr><td>${esc(when(r.at))}</td><td>${esc(r.q)}</td><td>${pos >= 0 ? `${pos + 1}번째` : '<span class="muted">없음</span>'}<span class="muted"> / ${r.ads.length}</span></td></tr>`;
+    }).join('')}</tbody></table>
+    <details><summary>마지막 기록의 광고 목록</summary><pre>${esc(rows[0].ads.join('\n'))}</pre></details>` : '<div class="state">아직 폰 기록이 없습니다.</div>'}
+    <details><summary>북마크 설치 방법</summary>
+      <p class="note">1. 아무 페이지나 북마크에 추가합니다. 2. 아래 버튼으로 코드를 복사합니다. 3. 북마크를 편집해 이름은 "광고기록", 주소는 복사한 코드로 바꿉니다. 4. 네이버 목록 화면을 끝까지 내린 뒤 그 북마크를 누릅니다.</p>
+      <button type="button" id="copyBm" style="margin-top:8px">북마크 코드 복사</button>
+    </details>
+    <p class="note">기록은 이 폰의 브라우저에만 저장됩니다.</p>`;
+  $('copyBm').onclick = async () => {
+    try { await navigator.clipboard.writeText(BOOKMARKLET); $('copyBm').textContent = '복사됨'; }
+    catch { $('copyBm').textContent = '복사 실패'; }
+  };
+}
+
 const LOG_URL = 'https://raw.githubusercontent.com/lim5829/naver-ad-web/rank-log/rank-log.csv';
 const LOG_ROWS = 72;
 let logRows = [];
@@ -239,9 +273,11 @@ $('loc').value = store.get('locChoice', 'sonyang');
 if (!$('loc').value) $('loc').value = 'sonyang';
 $('device').value = store.get('device', 'mobile');
 renderRecent();
+receivePhoneRecord();
+renderPhone();
 loadLog();
 $('form').onsubmit = (e) => { e.preventDefault(); const q = $('q').value.trim(); if (q) search(q); };
-$('mine').oninput = () => { store.set('mine', $('mine').value); render(); };
+$('mine').oninput = () => { store.set('mine', $('mine').value); render(); renderPhone(); };
 $('loc').onchange = () => { store.set('locChoice', $('loc').value); const q = $('q').value.trim(); if (q) search(q); };
 $('device').onchange = () => { store.set('device', $('device').value); const q = $('q').value.trim(); if (q) search(q); };
 $('recent').onclick = (e) => { const k = e.target.dataset.k; if (k) { $('q').value = k; search(k); } };
