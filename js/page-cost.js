@@ -105,10 +105,6 @@ function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod,
         byAg[id].salesAmt += Number(item.salesAmt) || 0;
       });
 
-<<<<<<< HEAD
-      const result = adgroups.map(ag => {
-        const s = byAg[ag.nccAdgroupId] || { clkCnt: 0, impCnt: 0, salesAmt: 0 };
-=======
       // 평균 노출순위는 별도 요청: 네이버가 거부해도 기존 통계는 그대로 나오게 한다
       const rankByAg = {};
       try {
@@ -134,7 +130,6 @@ function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod,
         const s = byAg[ag.nccAdgroupId] || { clkCnt: 0, impCnt: 0, salesAmt: 0 };
         const rank = rankByAg[ag.nccAdgroupId];
         s.avgRnk = rank ? (rank.sum / rank.imp).toFixed(1) : null;
->>>>>>> origin/place-rank
         s.cpc = s.clkCnt > 0 ? Math.round(s.salesAmt / s.clkCnt) : 0;
         s.ctr = s.impCnt > 0 ? ((s.clkCnt / s.impCnt) * 100).toFixed(2) : "0.00";
         return { ...ag, stats: s };
@@ -222,12 +217,9 @@ function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod,
                     </div>
                   ))}
                 </div>
-<<<<<<< HEAD
-=======
                 {ag.stats.avgRnk && (
                   <div style={{ fontSize: 11, fontWeight: 700, color: theme.text, marginTop: 6 }}>평균 노출순위 {ag.stats.avgRnk}위</div>
                 )}
->>>>>>> origin/place-rank
               </div>
             );
           })}
