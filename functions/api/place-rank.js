@@ -287,7 +287,7 @@ export async function onRequestGet({ request }) {
         ? { ads: live.ads, adTotal: live.adTotal, hasAdList: true, adSource: "live", adDeviceType: live.deviceType }
         : { adSource: "initial" };
       return json(
-        { query: q, x, y, device, source, kind, checkedAt: new Date().toISOString(), ...parsed, ...adInfo, adLog: live.log },
+        { query: q, x, y, device, source, kind, colo: request.cf?.colo ?? null, checkedAt: new Date().toISOString(), ...parsed, ...adInfo, adLog: live.log },
         200,
         { "Cache-Control": "no-store" }
       );
