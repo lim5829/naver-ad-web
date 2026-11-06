@@ -13,13 +13,10 @@ const USER_AGENTS = {
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
 };
 const HOSTS = { pc: "https://pcmap.place.naver.com", mobile: "https://m.place.naver.com" };
-// 네이버지도는 카페·음식점을 restaurant 목록으로, 나머지를 place 목록으로 보여준다.
-const FOOD_KEYWORD = /카페|커피|브런치|맛집|식당|음식|베이커리|빵집|디저트|술집|횟집|고기|국밥|분식|떡볶이/;
-
-function sourcesFor(device, q) {
-  const kinds = FOOD_KEYWORD.test(q) ? ["restaurant", "place"] : ["place", "restaurant"];
+// place 목록이 네이버지도 실제 순서와 맞는 것을 사용자가 확인했다. restaurant는 place가 비었을 때만 쓴다.
+function sourcesFor(device) {
   const devices = device === "mobile" ? ["mobile", "pc"] : ["pc"];
-  return devices.flatMap((d) => kinds.map((k) => [d, k]));
+  return devices.flatMap((d) => [[d, "place"], [d, "restaurant"]]);
 }
 
 const json = (body, status = 200, extra = {}) =>
@@ -187,13 +184,8 @@ async function fetchList(device, kind, q, x, y) {
   url.searchParams.set("y", y);
   url.searchParams.set("clientX", x);
   url.searchParams.set("clientY", y);
-  const [cx, cy] = [Number(x), Number(y)];
-  url.searchParams.set("bounds", `${cx - 0.04};${cy - 0.03};${cx + 0.04};${cy + 0.03}`);
   url.searchParams.set("display", "70");
-  url.searchParams.set("ts", String(Date.now()));
-  url.searchParams.set("additionalHeight", "76");
   url.searchParams.set("locale", "ko");
-  url.searchParams.set("mapUrl", `https://map.naver.com/p/search/${encodeURIComponent(q)}`);
 
   const res = await fetch(url.toString(), {
     headers: {
@@ -225,7 +217,7 @@ export async function onRequestGet({ request, waitUntil }) {
   if (cached) return cached;
 
   const attempts = [];
-  for (const [source, kind] of sourcesFor(device, q)) {
+  for (const [source, kind] of sourcesFor(device)) {
     let attempt;
     try {
       attempt = await fetchList(source, kind, q, x, y);
