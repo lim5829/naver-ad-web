@@ -105,8 +105,31 @@ function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod,
         byAg[id].salesAmt += Number(item.salesAmt) || 0;
       });
 
+      // 평균 노출순위는 별도 요청: 네이버가 거부해도 기존 통계는 그대로 나오게 한다
+      const rankByAg = {};
+      try {
+        const rankFields = '["avgRnk","impCnt"]';
+        const query = `ids=${encodeURIComponent(agIds)}&fields=${encodeURIComponent(rankFields)}`;
+        const r = p.useRange || p.key === "lastMonth" ? (p.key === "lastMonth" ? getMonthRange(-1) : getMonthRange(0)) : null;
+        const rankData = await naverApiFetch({
+          path: r ? `/api/stats-range?${query}&since=${r.since}&until=${r.until}` : `/api/stats-summary?${query}&datePreset=${p.preset}`,
+          ...apiSettings,
+        });
+        extractArr(rankData).forEach(item => {
+          const id = item.id || item.nccAdgroupId;
+          const rank = Number(item.avgRnk);
+          const imp = Number(item.impCnt) || 0;
+          if (!rank || !imp) return;
+          if (!rankByAg[id]) rankByAg[id] = { sum: 0, imp: 0 };
+          rankByAg[id].sum += rank * imp;
+          rankByAg[id].imp += imp;
+        });
+      } catch (e) { /* 평균순위만 생략 */ }
+
       const result = adgroups.map(ag => {
         const s = byAg[ag.nccAdgroupId] || { clkCnt: 0, impCnt: 0, salesAmt: 0 };
+        const rank = rankByAg[ag.nccAdgroupId];
+        s.avgRnk = rank ? (rank.sum / rank.imp).toFixed(1) : null;
         s.cpc = s.clkCnt > 0 ? Math.round(s.salesAmt / s.clkCnt) : 0;
         s.ctr = s.impCnt > 0 ? ((s.clkCnt / s.impCnt) * 100).toFixed(2) : "0.00";
         return { ...ag, stats: s };
@@ -194,6 +217,9 @@ function CostCampaignCard({ campaign, cs, totalSales, apiSettings, activePeriod,
                     </div>
                   ))}
                 </div>
+                {ag.stats.avgRnk && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: theme.text, marginTop: 6 }}>평균 노출순위 {ag.stats.avgRnk}위</div>
+                )}
               </div>
             );
           })}
